@@ -325,63 +325,124 @@ class SwinTransformer(nn.Module):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 阶段 1a：视觉编码器（Swin + 投影）
+# 阶段 1a：视觉编码器（原版 CLIP ViT-L/14，从本地 .pth 加载）
 # ─────────────────────────────────────────────────────────────────────────────
+
+class CLIPResidualAttentionBlock(nn.Module):
+    """原版 CLIP ViT 的 ResidualAttentionBlock"""
+    def __init__(self, d_model, n_head):
+        super().__init__()
+        self.attn = nn.MultiheadAttention(d_model, n_head, batch_first=True)
+        self.ln_1 = nn.LayerNorm(d_model)
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, d_model * 4),
+            nn.GELU(),
+            nn.Linear(d_model * 4, d_model),
+        )
+        self.ln_2 = nn.LayerNorm(d_model)
+
+    def forward(self, x):
+        x_ln = self.ln_1(x)
+        attn_out, _ = self.attn(x_ln, x_ln, x_ln, need_weights=False)
+        x = x + attn_out
+        x = x + self.mlp(self.ln_2(x))
+        return x
+
+
+class CLIPViTL14(nn.Module):
+    """
+    原版 CLIP ViT-L/14，直接从 clip_vit_L.pth 加载权重。
+    支持返回中间层隐藏状态。
+    """
+    def __init__(self, ckpt_path):
+        super().__init__()
+        # ViT-L/14 超参
+        width, heads, layers = 1024, 16, 24
+        patch_size, image_size = 14, 224
+        num_patches = (image_size // patch_size) ** 2  # 256
+
+        self.conv1 = nn.Conv2d(3, width, patch_size, patch_size, bias=False)
+        self.class_embedding = nn.Parameter(torch.zeros(width))
+        self.positional_embedding = nn.Parameter(torch.zeros(num_patches + 1, width))
+        self.ln_pre = nn.LayerNorm(width)
+        self.transformer = nn.ModuleList([
+            CLIPResidualAttentionBlock(width, heads) for _ in range(layers)
+        ])
+        self.ln_post = nn.LayerNorm(width)
+
+        # 加载权重
+        self._load(ckpt_path)
+
+    def _load(self, path):
+        state = torch.load(path, map_location="cpu")
+        # 原版 key → 当前 key 的映射
+        new_state = {}
+        for k, v in state.items():
+            nk = k
+            # transformer.resblocks.i.* → transformer.i.*
+            nk = nk.replace("transformer.resblocks.", "transformer.")
+            # attn.in_proj_weight 需要拆分成 q/k/v，但 nn.MultiheadAttention
+            # 支持合并的 in_proj_weight，直接映射
+            nk = nk.replace(".attn.in_proj_weight", ".attn.in_proj_weight")
+            nk = nk.replace(".attn.in_proj_bias",   ".attn.in_proj_bias")
+            nk = nk.replace(".attn.out_proj.",       ".attn.out_proj.")
+            nk = nk.replace(".mlp.c_fc.",            ".mlp.0.")
+            nk = nk.replace(".mlp.c_proj.",          ".mlp.2.")
+            new_state[nk] = v
+        miss, unexp = self.load_state_dict(new_state, strict=False)
+        print(f"[CLIPViTL14] Loaded. Missing: {len(miss)}, Unexpected: {len(unexp)}")
+
+    def forward(self, x, return_layers=(6, 12, 18, 24)):
+        # Patch embedding
+        x = self.conv1(x)                          # (B, width, H/14, W/14)
+        x = x.flatten(2).transpose(1, 2)           # (B, 256, width)
+        cls = self.class_embedding.unsqueeze(0).unsqueeze(0).expand(x.shape[0], -1, -1)
+        x = torch.cat([cls, x], dim=1)             # (B, 257, width)
+        x = x + self.positional_embedding.unsqueeze(0)
+        x = self.ln_pre(x)
+
+        hidden_states = []
+        for i, blk in enumerate(self.transformer):
+            x = blk(x)
+            if (i + 1) in return_layers:           # 第 i+1 层（1-indexed）
+                hidden_states.append(x)
+
+        return hidden_states  # list of (B, 257, 1024)
+
 
 class VisualEncoder(nn.Module):
     """
-    Swin-Base(img=224) → 4 级特征各自投影到 768 维
-    输出 V = [V1(B,N1,768), V2(B,N2,768), V3(B,N3,768), V4(B,N4,768)]
-    Swin-Base 各 stage 原始维度: 128, 256, 512, 1024
+    CLIP ViT-L/14 (冻结，从本地 clip_vit_L.pth 加载)
+    → 取第 6,12,18,24 层隐藏状态 → 投影到 query_size (768)
+    输出 V = [V1(B,257,768), V2(B,257,768), V3(B,257,768), V4(B,257,768)]
     """
-    SWIN_DIMS = [128, 256, 512, 1024]
+    LAYER_INDICES = (6, 12, 18, 24)
+    CLIP_DIM = 1024
+    CLIP_PTH  = r"C:\Users\admin\.cache\torch\hub\checkpoints\clip_vit_L.pth"
 
     def __init__(self, config):
         super().__init__()
-        self.swin = SwinTransformer(
-            img_size=224,
-            patch_size=4,
-            embed_dim=128,
-            depths=[2, 2, 18, 2],
-            num_heads=[4, 8, 16, 32],
-            window_size=7,
-            drop_path_rate=0.1,
-        )
-        # 统一投影到 query_size（默认 768）
-        qs = config["query_size"]
+        qs = config["query_size"]  # 768
+
+        self.clip = CLIPViTL14(self.CLIP_PTH)
+
+        # 冻结 CLIP
+        for p in self.clip.parameters():
+            p.requires_grad = False
+        self.clip = self.clip.eval()
+        self.clip.train = disabled_train
+
+        # 4 个投影层：1024 → 768
         self.projectors = nn.ModuleList([
-            nn.Sequential(nn.Linear(d, qs), nn.LayerNorm(qs))
-            for d in self.SWIN_DIMS
+            nn.Sequential(nn.Linear(self.CLIP_DIM, qs), nn.LayerNorm(qs))
+            for _ in range(4)
         ])
 
-        # 可选：从预训练权重加载 Swin
-        if config.get("swin_pretrained"):
-            self._load_swin(config["swin_pretrained"])
-
-        if config.get("vision_freeze", False):
-            for p in self.swin.parameters():
-                p.requires_grad = False
-            self.swin = self.swin.eval()
-            self.swin.train = disabled_train
-
-    def _load_swin(self, path):
-        import os
-        if not os.path.exists(path):
-            print(f"[VisualEncoder] Swin pretrain path not found: {path}")
-            return
-        ckpt = torch.load(path, map_location="cpu")
-        # 支持多种 checkpoint 格式
-        state = ckpt.get("model", ckpt.get("state_dict", ckpt))
-        # 尝试去掉 "img_enc." 前缀（来自 AMM-Net.pt）
-        if any(k.startswith("img_enc.") for k in state):
-            state = {k[len("img_enc."):]: v for k, v in state.items() if k.startswith("img_enc.")}
-        miss, unexp = self.swin.load_state_dict(state, strict=False)
-        print(f"[VisualEncoder] Swin loaded from {path}. Missing: {len(miss)}, Unexpected: {len(unexp)}")
-
     def forward(self, image):
-        stage_outs = self.swin(image)   # 4 × (B, Ni, Ci)
-        V = [self.projectors[i](stage_outs[i]) for i in range(4)]
-        return V  # 4 × (B, Ni, 768)
+        hidden_states = self.clip(image, return_layers=self.LAYER_INDICES)
+        # hidden_states: list of 4 × (B, 257, 1024)
+        V = [self.projectors[i](hidden_states[i]) for i in range(4)]
+        return V  # 4 × (B, 257, 768)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

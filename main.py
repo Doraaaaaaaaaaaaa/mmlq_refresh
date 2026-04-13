@@ -48,16 +48,16 @@ def build_optimizer(model, base_lr, weight_decay=1e-4):
       - BERT（已冻结，不传） → 不参与优化
       - 其余（head, adapter, fusion, attr）→ base_lr
     """
-    swin_ids = {id(p) for p in model.visual_encoder.swin.parameters()}
+    clip_ids = {id(p) for p in model.visual_encoder.clip.parameters()}
 
-    swin_params = [p for p in model.parameters()
-                   if p.requires_grad and id(p) in swin_ids]
+    clip_params  = [p for p in model.parameters()
+                   if p.requires_grad and id(p) in clip_ids]
     other_params = [p for p in model.parameters()
-                    if p.requires_grad and id(p) not in swin_ids]
+                    if p.requires_grad and id(p) not in clip_ids]
 
     return AdamW(
         [
-            {"params": swin_params,  "lr": base_lr * 0.1},
+            {"params": clip_params,  "lr": base_lr * 0.1},
             {"params": other_params, "lr": base_lr},
         ],
         weight_decay=weight_decay,
