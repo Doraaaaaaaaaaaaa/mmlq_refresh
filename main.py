@@ -94,7 +94,7 @@ def main():
     use_amp = torch.cuda.is_available()
 
     # ── 配置 ────────────────────────────────────────────────────────────────
-    with open("config.yml") as f:
+    with open("config.yml", encoding="utf-8") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     accum_steps  = config.get("accum_steps", 4)

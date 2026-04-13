@@ -1,31 +1,29 @@
 dataset: "hlagcn"
 padding: False
-augmentation: 1          # 水平翻转
+augmentation: 1
 
-# ── 训练超参数 ─────────────────────────────────────────
+# Training
 epochs: 10
-batch_size: 16           # 显存不足可改 8，配合 accum_steps 保持等效 batch
-accum_steps: 4           # 梯度累积步数，等效 batch = batch_size × accum_steps
+batch_size: 16
+accum_steps: 4
 num_workers: 8
 
-lr: 0.0001               # base lr（Swin 用 0.1×，其余用 1×）
-lambda_mean: 0.2         # MSE 均值损失权重
-lambda_rank: 0.1         # Pairwise ranking loss 权重
+lr: 0.0001
+lambda_mean: 0.2
+lambda_rank: 0.1
 
-# ── 模型结构 ──────────────────────────────────────────
-query_size: 768          # 统一特征维度（与 BERT hidden size 一致）
-num_visual_query: 2      # 每层视觉可学习 query 数量
-num_text_query: 2        # 每层文本可学习 query 数量
-num_attn_heads: 8        # Cross-Attention 头数
-max_caption_length: 128  # BERT 最大输入长度（显存敏感，可改 64/128/256）
+# Model
+query_size: 768
+num_visual_query: 2
+num_text_query: 2
+num_attn_heads: 8
+max_caption_length: 128
 dropout: 0.1
 
-# ── 编码器设置 ────────────────────────────────────────
-vision_freeze: False     # 是否冻结 Swin（建议先 False，显存不够再 True）
+# Encoder
+vision_freeze: False
+swin_pretrained: ""
+parn_pretrained: ""
 
-# 预训练权重路径（留空则随机初始化）
-swin_pretrained: ""      # 例："C:/path/to/swin_base_patch4_window7_224_22k.pth"
-parn_pretrained: ""      # 例："C:/Users/admin/Desktop/test-main/test-main/AMM-Net-main/AMM-Net.pt"
-
-# ── 断点续训 ─────────────────────────────────────────
-resume: ""               # 例："./save/2025-xx-xx/checkpoints/checkpoint_3.pt"
+# Resume
+resume: ""
