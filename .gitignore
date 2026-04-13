@@ -1,0 +1,36 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 模型权重（文件太大，不上传）
+*.pt
+*.pth
+*.ckpt
+*.bin
+save/
+checkpoints/
+
+# 数据集文件（太大，不上传）
+*.pkl
+*.csv
+*.h5
+*.npy
+*.npz
+
+# PDF 和论文原文（版权问题）
+*.pdf
+paper_content.txt
+paper_content_2.txt
+
+# IDE
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# TensorBoard 日志
+runs/
+logs/

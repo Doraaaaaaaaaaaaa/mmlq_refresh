@@ -1,0 +1,18 @@
+# 注意: PyTorch 和 LAVIS 需要单独安装，见 SETUP.md
+
+# Transformers
+transformers>=4.30.0
+
+# 数据处理
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+Pillow>=9.5.0
+
+# 训练工具
+tensorboard>=2.13.0
+tqdm>=4.65.0
+pyyaml>=6.0
+
+# 其他
+opencv-python>=4.7.0
