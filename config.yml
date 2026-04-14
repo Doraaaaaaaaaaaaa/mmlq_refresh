@@ -26,4 +26,4 @@ swin_pretrained: ""
 parn_pretrained: ""
 
 # Resume
-resume: ""
+resume: "save/2026-04-13-20-44-50/checkpoints/checkpoint_0.pt"

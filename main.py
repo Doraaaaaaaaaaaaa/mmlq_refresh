@@ -152,7 +152,7 @@ def main():
     start_epoch = 0
     best_srcc   = -1.0
     if config.get("resume"):
-        ckpt = torch.load(config["resume"], map_location="cpu")
+        ckpt = torch.load(config["resume"], map_location="cpu", weights_only=False)
         model.load_state_dict(ckpt["model_state_dict"], strict=False)
         if "optimizer_state_dict" in ckpt:
             optimizer.load_state_dict(ckpt["optimizer_state_dict"])
