@@ -17,7 +17,7 @@ query_size: 768
 num_visual_query: 2
 num_text_query: 2
 num_attn_heads: 8
-max_caption_length: 128
+max_caption_length: 512
 dropout: 0.1
 
 # Encoder
