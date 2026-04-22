@@ -727,9 +727,10 @@ class DynamicAttributeModule(nn.Module):
         # 属性推理：2 层 CrossAttn，Q=F，K/V=attr_tokens
         num_heads = config.get("num_attn_heads", 8)
         dropout   = config.get("dropout", 0.1)
+        attr_depth = config.get("attr_reasoning_layers", 1)
         self.attr_reasoning = nn.ModuleList([
             CrossAttnBlock(qs, num_heads, dropout)
-            for _ in range(2)
+            for _ in range(attr_depth)
         ])
 
         # 图像下采样到 224（PARN 输入尺寸固定）
@@ -773,6 +774,54 @@ class DynamicAttributeModule(nn.Module):
 # ─────────────────────────────────────────────────────────────────────────────
 # 完整模型
 # ─────────────────────────────────────────────────────────────────────────────
+
+class HierarchicalAttentionAggregator(nn.Module):
+    """Aggregate four layer-level query outputs with self-attention."""
+
+    def __init__(self, dim=768, num_layers=4, num_heads=8, depth=2, dropout=0.1):
+        super().__init__()
+        self.global_token = nn.Parameter(torch.zeros(1, 1, dim))
+        self.layer_pos = nn.Parameter(torch.zeros(1, num_layers + 1, dim))
+        self.blocks = nn.ModuleList([
+            nn.ModuleDict({
+                "norm1": nn.LayerNorm(dim),
+                "attn": nn.MultiheadAttention(
+                    embed_dim=dim,
+                    num_heads=num_heads,
+                    dropout=dropout,
+                    batch_first=True,
+                ),
+                "norm2": nn.LayerNorm(dim),
+                "ffn": nn.Sequential(
+                    nn.Linear(dim, dim * 4),
+                    nn.GELU(),
+                    nn.Dropout(dropout),
+                    nn.Linear(dim * 4, dim),
+                ),
+            })
+            for _ in range(depth)
+        ])
+        self.drop = nn.Dropout(dropout)
+        self.out_norm = nn.LayerNorm(dim)
+
+        nn.init.trunc_normal_(self.global_token, std=0.02)
+        nn.init.trunc_normal_(self.layer_pos, std=0.02)
+
+    def forward(self, layer_queries):
+        layer_tokens = torch.stack([q.mean(dim=1) for q in layer_queries], dim=1)
+        B = layer_tokens.shape[0]
+        x = torch.cat([self.global_token.expand(B, -1, -1), layer_tokens], dim=1)
+        x = x + self.layer_pos[:, :x.shape[1], :]
+
+        for block in self.blocks:
+            residual = x
+            h = block["norm1"](x)
+            attn_out, _ = block["attn"](h, h, h, need_weights=False)
+            x = residual + self.drop(attn_out)
+            x = x + self.drop(block["ffn"](block["norm2"](x)))
+
+        return self.out_norm(x[:, 0, :])
+
 
 class ImprovedIAAModel(nn.Module):
     """
@@ -823,8 +872,15 @@ class ImprovedIAAModel(nn.Module):
         ])
 
         # 4 层输出聚合后的层归一化
-        self.fusion_norm_v = nn.LayerNorm(qs)
-        self.fusion_norm_t = nn.LayerNorm(qs)
+        hier_depth = config.get("hier_attn_layers", 2)
+        self.visual_hier_agg = HierarchicalAttentionAggregator(
+            dim=qs, num_layers=num_layers, num_heads=nh,
+            depth=hier_depth, dropout=dropout,
+        )
+        self.text_hier_agg = HierarchicalAttentionAggregator(
+            dim=qs, num_layers=num_layers, num_heads=nh,
+            depth=hier_depth, dropout=dropout,
+        )
 
         # ── 阶段 3：动态属性推理 ─────────────────────────────────────────────
         self.attribute_module = DynamicAttributeModule(config)
@@ -874,15 +930,12 @@ class ImprovedIAAModel(nn.Module):
 
         # 4 层输出在 query 维度上堆叠后取均值（等价于 mean pooling over layers）
         # all_VQ: list of 4 × (B, nv, 768) → stack → (B, 4*nv, 768)
-        VQ_agg = torch.cat(all_VQ, dim=1)                   # (B, 4*nv, 768)
-        TQ_agg = torch.cat(all_TQ, dim=1)                   # (B, 4*nt, 768)
+        VQ_global = self.visual_hier_agg(all_VQ)             # (B, 768)
+        TQ_global = self.text_hier_agg(all_TQ)               # (B, 768)
 
         # 取均值得到紧凑表示
-        VQ_mean = self.fusion_norm_v(VQ_agg.mean(dim=1))    # (B, 768)
-        TQ_mean = self.fusion_norm_t(TQ_agg.mean(dim=1))    # (B, 768)
-
         # 拼接成多模态 query，送入属性模块
-        F_cat = torch.cat([VQ_mean.unsqueeze(1), TQ_mean.unsqueeze(1)], dim=1)  # (B,2,768)
+        F_cat = torch.cat([VQ_global.unsqueeze(1), TQ_global.unsqueeze(1)], dim=1)  # (B,2,768)
 
         # ── 阶段 3 ──────────────────────────────────────────────────────────
         F_hat = self.attribute_module(image, F_cat)   # forward(image, feat): (B, 2, 768)

@@ -155,9 +155,15 @@ def main():
         ckpt = torch.load(config["resume"], map_location="cpu", weights_only=False)
         model.load_state_dict(ckpt["model_state_dict"], strict=False)
         if "optimizer_state_dict" in ckpt:
-            optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+            try:
+                optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+            except ValueError as e:
+                print(f"[Resume] skip optimizer state: {e}")
         if "scheduler_state_dict" in ckpt:
-            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+            try:
+                scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+            except ValueError as e:
+                print(f"[Resume] skip scheduler state: {e}")
         start_epoch = ckpt.get("epoch", 0) + 1
         best_srcc   = ckpt.get("best_srcc", -1.0)
         print(f"[Resume] from epoch {start_epoch}, best_srcc={best_srcc:.4f}")
