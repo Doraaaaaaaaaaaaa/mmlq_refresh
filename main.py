@@ -43,8 +43,8 @@ warnings.filterwarnings(action="ignore", category=UserWarning)
 
 def build_optimizer(model, base_lr, weight_decay=1e-4):
     """
-    三组参数：
-      - Swin backbone        → 0.1 × base_lr
+    两组参数：
+      - CLIP backbone        → 0.1 × base_lr
       - BERT（已冻结，不传） → 不参与优化
       - 其余（head, adapter, fusion, attr）→ base_lr
     """

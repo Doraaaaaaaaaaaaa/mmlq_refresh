@@ -17,13 +17,15 @@ query_size: 768
 num_visual_query: 2
 num_text_query: 2
 num_attn_heads: 8
+hier_attn_layers: 2
+attr_reasoning_layers: 1
 max_caption_length: 512
 dropout: 0.1
 
 # Encoder
-vision_freeze: False
-swin_pretrained: ""
-parn_pretrained: ""
+clip_pretrained: "C:/Users/admin/.cache/torch/hub/checkpoints/clip_vit_L.pth"
+parn_pretrained: "C:/Users/admin/Desktop/大三下/论文/AMM-Net.pt"
+ava_dataset_dir: "C:/Users/admin/AVA_Dataset"
 
 # Resume
-resume: "save/2026-04-13-20-44-50/checkpoints/checkpoint_0.pt"
+resume: ""

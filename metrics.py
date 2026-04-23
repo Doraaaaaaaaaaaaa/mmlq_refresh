@@ -32,8 +32,8 @@ def cal_metrics(output, target):
         output_tensor = torch.from_numpy(output)
         target_tensor = torch.from_numpy(target)
         with torch.no_grad():
-            emd1 = EMDLoss(dist_r=1)(target_tensor, output_tensor).numpy().item()
-            emd2 = EMDLoss(dist_r=2)(target_tensor, output_tensor).numpy().item()
+            emd1 = EMDLoss(dist_r=1)(target_tensor, output_tensor).item()
+            emd2 = EMDLoss(dist_r=2)(target_tensor, output_tensor).item()
     else:
         acc, emd1, emd2 = 0, 0, 0
                 

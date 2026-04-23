@@ -17,7 +17,7 @@ warnings.filterwarnings(action="ignore", category=UserWarning)
 if socket.gethostname() in ["ntu-webank-gpu01"]:
     DATASET_DIR = "/ssd2/zhiwei"
 else:
-    DATASET_DIR = "C:/Users/admin/AVA_Dataset"
+    DATASET_DIR = None  # 从 config 读取
 
 
 def add_padding(img):
@@ -90,18 +90,20 @@ class AVADataset(Dataset):
         self.split = split
         train_tsfms, test_tsfms = get_tsfms(config)
 
+        data_dir = DATASET_DIR or config["ava_dataset_dir"]
+
         if split == "train":
-            self.df = pd.read_csv(_resolve_split_csv(DATASET_DIR, "train", config))
+            self.df = pd.read_csv(_resolve_split_csv(data_dir, "train", config))
             self.transform = train_tsfms
         elif split == "test":
-            self.df = pd.read_csv(_resolve_split_csv(DATASET_DIR, "test", config))
+            self.df = pd.read_csv(_resolve_split_csv(data_dir, "test", config))
             self.transform = test_tsfms
         else:
             raise ValueError(f"Unsupported split: {split}")
 
         self.padding = config["padding"]
-        self.images_path = os.path.join(DATASET_DIR, "images")
-        with open(_resolve_comment_pkl(DATASET_DIR), "rb") as f:
+        self.images_path = os.path.join(data_dir, "images")
+        with open(_resolve_comment_pkl(data_dir), "rb") as f:
             self.caption_dict = pickle.load(f)
 
     def __len__(self) -> int:
