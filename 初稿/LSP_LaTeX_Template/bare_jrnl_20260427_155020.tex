@@ -1,0 +1,584 @@
+\documentclass[journal]{IEEEtran}
+
+\ifCLASSINFOpdf
+\else
+   \usepackage[dvips]{graphicx}
+\fi
+\usepackage{url}
+
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+\usepackage{graphicx}
+
+
+\begin{document}
+
+\title{LQ-ICIF: Learnable Query-Guided Image-Comment Interaction Fusion for Image Aesthetic Assessment}
+
+\author{First A. Author, \IEEEmembership{Fellow, IEEE}, Second B. Author, and Third C. Author, Jr., \IEEEmembership{Member, IEEE}
+\thanks{This paragraph of the first footnote will contain the date on which you submitted your paper for review. It will also contain support information, including sponsor and financial support acknowledgment. For example, ``This work was supported in part by the U.S. Department of Commerce under Grant 123456.''}
+\thanks{The next few paragraphs should contain the authors' current affiliations, including current address and e-mail. For example, First A. Author is with the National Institute of Standards and Technology, Boulder, CO 80305 USA (e-mail: author@boulder.nist.gov).}
+\thanks{Second B. Author, Jr., was with Rice University, Houston, TX 77005 USA. He is now with the Department of Physics, Colorado State University, Fort Collins, CO 80523 USA (e-mail: author@lamar.colostate.edu).}}
+
+\markboth{Journal of \LaTeX\ Class Files, Vol. 14, No. 8, August 2015}
+{Shell \MakeLowercase{\textit{et al.}}: Bare Demo of IEEEtran.cls for IEEE Journals}
+\maketitle
+
+\begin{abstract}
+Vision-language models have shown strong potential in image aesthetic assessment (IAA), yet effectively exploiting user comments with limited trainable parameters remains challenging. In this letter, we introduce LQ-ICIF, a parameter-efficient multimodal framework for aesthetic score distribution prediction. To capture aesthetic cues from images and comments, LQ-ICIF integrates two key components: 1) learnable query-guided intra-cross interaction fusion, which extracts hierarchical visual-comment representations from frozen CLIP and BERT backbones, and 2) attribute-guided representation refinement, which incorporates photographic aesthetic attributes predicted by a frozen PARN model as structured priors. Experiments show that LQ-ICIF achieves an SRCC of 0.9145, PLCC of 0.9213, classification accuracy of 87.51\%, and EMD of 0.0403, demonstrating accurate and efficient multimodal aesthetic distribution prediction.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Image aesthetic assessment, user comments, multimodal learning, score distribution prediction, attribute-guided refinement.
+\end{IEEEkeywords}
+
+\IEEEpeerreviewmaketitle
+
+\section{Introduction}
+
+\IEEEPARstart{I}{mage} aesthetic assessment (IAA) aims to automatically predict human aesthetic perception of images and has attracted increasing attention due to applications in image retrieval, photo recommendation, automatic enhancement, and social media content management [1], [2]. Unlike conventional image quality assessment, IAA is affected by composition, lighting, color harmony, semantic content, photographic style, and subjective preference. Therefore, accurately predicting aesthetic score distributions remains challenging.
+
+Subjective evaluation methods, which collect human ratings, are widely regarded as the most reliable way to measure image aesthetics. However, their high time and labor costs make them unsuitable for scalable applications. To address this limitation, objective IAA methods have been developed to automatically predict human aesthetic opinions. Conventional methods mainly rely on handcrafted features designed according to photographic rules, including color, saliency, texture, depth of field, and composition. Nevertheless, these descriptors are often insufficient to represent complex aesthetic patterns.
+
+Recent learning-based methods employ convolutional neural networks and vision transformers to learn aesthetic representations directly from images [2], [3]. Distribution-based methods, such as NIMA, further predict the probability distribution of human ratings and optimize the Earth Mover's Distance (EMD), offering a more faithful description of subjective opinions than scalar regression [3]. However, most existing methods still depend primarily on visual content, while perceptual cues expressed in user comments are largely ignored.
+
+To exploit such complementary information, several studies have explored image-comment modeling for IAA. User comments can explicitly describe blur, lighting, composition, color tone, subject emphasis, and emotional impression. For example, VILA learns aesthetic representations from image-comment pairs via vision-language pretraining [5], while MMLQ extracts multimodal aesthetic features from images and comments using learnable queries with frozen encoders [6]. Although effective, existing multimodal IAA methods still face three limitations. First, single-layer or final-layer features may overlook hierarchical aesthetic perception. Second, direct cross-modal fusion may introduce noisy interactions when comments are subjective, incomplete, or irrelevant. Third, structured aesthetic attributes are not fully exploited.
+
+To address these challenges, we propose LQ-ICIF, a parameter-efficient multimodal framework for aesthetic score distribution prediction. As shown in Fig. 1, the proposed method keeps CLIP, BERT, and PARN frozen, and introduces lightweight projections, adapters, and learnable queries for task-specific adaptation [7]--[9]. Multi-scale visual features from CLIP and multi-level textual features from BERT are extracted to capture hierarchical cues. A weak cross-modal interaction module then preserves modality-specific information while modeling visual-textual complementarity. In addition, attribute-aware reasoning introduces structured photographic attribute tokens to guide prediction.
+
+The main contributions of this work are summarized as follows:
+\begin{itemize}
+\item We propose a parameter-efficient multimodal IAA framework with frozen pretrained visual, textual, and attribute models.
+\item We introduce a learnable query-guided intra-cross interaction mechanism to capture hierarchical visual-textual cues while reducing noisy over-fusion.
+\item We incorporate attribute-guided representation refinement for robust distribution-level prediction.
+\end{itemize}
+
+The remainder of this paper is organized as follows. Section II details the proposed LQ-ICIF framework. Section III presents the experimental results. Finally, Section IV concludes the paper.
+
+\section{Method}
+
+\subsection{Background}
+
+The pretrained CLIP, BERT, and PARN models [10]--[12] provide compact visual, textual, and photographic attribute priors for multimodal aesthetic assessment. In this letter, we keep them frozen and introduce lightweight adaptation modules for image-comment aesthetic score distribution prediction. The feature extraction process is described below.
+
+Given the $i$-th image $I_i$ and its corresponding comment $C_i$, we extract multi-scale visual features and multi-level textual features as
+\begin{equation}
+\{\mathbf{V}_i^l\}_{l=1}^{L}=E_v(I_i), \quad
+\{\mathbf{T}_i^m\}_{m=1}^{M}=E_t(C_i).
+\end{equation}
+
+The photographic attribute representation is obtained by
+\begin{equation}
+\mathbf{A}_i=E_a(I_i).
+\end{equation}
+
+Then, all modality-specific features are projected into a unified latent space:
+\begin{equation}
+\tilde{\mathbf{V}}_i^l=P_v^l(\mathbf{V}_i^l), \quad
+\tilde{\mathbf{T}}_i^m=P_t^m(\mathbf{T}_i^m), \quad
+\tilde{\mathbf{A}}_i=P_a(\mathbf{A}_i).
+\end{equation}
+
+\subsection{Problem Formulation}
+
+\section{Guidelines for Graphics Preparation and Submission}
+\label{sec:guidelines}
+
+\subsection{Types of Graphics}
+The following list outlines the different types of graphics published in 
+{\it IEEE Signal Processing Letters}. They are categorized based on their construction, and use of 
+color/shades of gray:
+
+\subsubsection{Color/Grayscale figures}
+{Figures that are meant to appear in color, or shades of black/gray. Such 
+figures may include photographs, illustrations, multicolor graphs, and 
+flowcharts.}
+
+\subsubsection{Line Art figures}
+{Figures that are composed of only black lines and shapes. These figures 
+should have no shades or half-tones of gray, only black and white.}
+
+\subsubsection{Tables}
+{Data charts which are typically black and white, but sometimes include 
+color.}
+
+
+
+\subsection{Multipart figures}
+Figures compiled of more than one sub-figure presented side-by-side, or 
+stacked. If a multipart figure is made up of multiple figure
+types (one part is lineart, and another is grayscale or color) the figure 
+should meet the stricter guidelines.
+
+\subsection{File Formats For Graphics}\label{formats}
+Format and save your graphics using a suitable graphics processing program 
+that will allow you to create the images as PostScript (PS), Encapsulated 
+PostScript (.EPS), Tagged Image File Format (.TIFF), Portable Document 
+Format (.PDF), Portable Network Graphics (.PNG), or Metapost (.MPS), sizes them, and adjusts 
+the resolution settings. When 
+submitting your final paper, your graphics should all be submitted 
+individually in one of these formats along with the manuscript.
+
+\subsection{Sizing of Graphics}
+Most charts, graphs, and tables are one column wide (3.5 inches/88 
+millimeters/21 picas) or page wide (7.16 inches/181 millimeters/43 
+picas). The maximum depth a graphic can be is 8.5 inches (216 millimeters/54
+picas). When choosing the depth of a graphic, please allow space for a 
+caption. Figures can be sized between column and page widths if the author 
+chooses, however it is recommended that figures are not sized less than 
+column width unless when necessary. 
+
+\begin{figure}
+\centerline{\includegraphics[width=\columnwidth]{fig1.png}}
+\caption{Magnetization as a function of applied field. Note that ``Fig.'' is abbreviated. There is a period after the figure number, followed by two spaces. It is good practice to explain the significance of the figure in the caption.}
+\end{figure}
+
+\begin{table}
+\caption{Units for Magnetic Properties}
+\label{table}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|p{25pt}|p{75pt}|p{110pt}|}
+\hline
+Symbol& 
+Quantity& 
+Conversion from Gaussian and \par CGS EMU to SI$^{\mathrm{a}}$ \\
+\hline
+$\Phi $& 
+Magnetic flux& 
+1 Mx $\to  10^{-8}$ Wb $= 10^{-8}$ V $\cdot$ s \\
+$B$& 
+Magnetic flux density, \par magnetic induction& 
+1 G $\to  10^{-4}$ T $= 10^{-4}$ Wb/m$^{2}$ \\
+$H$& 
+Magnetic field strength& 
+1 Oe $\to  10^{-3}/(4\pi )$ A/m \\
+$m$& 
+Magnetic moment& 
+1 erg/G $=$ 1 emu \par $\to 10^{-3}$ A $\cdot$ m$^{2} = 10^{-3}$ J/T \\
+$M$& 
+Magnetization& 
+1 erg/(G $\cdot$ cm$^{3}) =$ 1 emu/cm$^{3}$ \par $\to 10^{-3}$ A/m \\
+4$\pi M$& 
+Magnetization& 
+1 G $\to  10^{-3}/(4\pi )$ A/m \\
+$\sigma $& 
+Specific magnetization& 
+1 erg/(G $\cdot$ g) $=$ 1 emu/g $\to $ 1 A $\cdot$ m$^{2}$/kg \\
+$j$& 
+Magnetic dipole \par moment& 
+1 erg/G $=$ 1 emu \par $\to 4\pi \times  10^{-10}$ Wb $\cdot$ m \\
+$J$& 
+Magnetic polarization& 
+1 erg/(G $\cdot$ cm$^{3}) =$ 1 emu/cm$^{3}$ \par $\to 4\pi \times  10^{-4}$ T \\
+$\chi , \kappa $& 
+Susceptibility& 
+1 $\to  4\pi $ \\
+$\chi_{\rho }$& 
+Mass susceptibility& 
+1 cm$^{3}$/g $\to  4\pi \times  10^{-3}$ m$^{3}$/kg \\
+$\mu $& 
+Permeability& 
+1 $\to  4\pi \times  10^{-7}$ H/m \par $= 4\pi \times  10^{-7}$ Wb/(A $\cdot$ m) \\
+$\mu_{r}$& 
+Relative permeability& 
+$\mu \to \mu_{r}$ \\
+$w, W$& 
+Energy density& 
+1 erg/cm$^{3} \to  10^{-1}$ J/m$^{3}$ \\
+$N, D$& 
+Demagnetizing factor& 
+1 $\to  1/(4\pi )$ \\
+\hline
+\multicolumn{3}{p{251pt}}{Vertical lines are optional in tables. Statements that serve as captions for 
+the entire table do not need footnote letters. }\\
+\multicolumn{3}{p{251pt}}{$^{\mathrm{a}}$Gaussian units are the same as cg emu for magnetostatics; Mx 
+$=$ maxwell, G $=$ gauss, Oe $=$ oersted; Wb $=$ weber, V $=$ volt, s $=$ 
+second, T $=$ tesla, m $=$ meter, A $=$ ampere, J $=$ joule, kg $=$ 
+kilogram, H $=$ henry.}
+\end{tabular}
+\label{tab1}
+\end{table}
+
+
+\subsection{Resolution }
+The proper resolution of your figures will depend on the type of figure it 
+is as defined in the ``Types of Figures'' section. Author photographs, 
+color, and grayscale figures should be at least 300dpi. Line art, including 
+tables should be a minimum of 600dpi.
+
+\subsection{Vector Art}
+In order to preserve the figures' integrity across multiple computer 
+platforms, we accept files in the following formats: .EPS/.PDF/.PS. All 
+fonts must be embedded or text converted to outlines in order to achieve the 
+best-quality results.
+
+
+\subsection{Accepted Fonts Within Figures}
+When preparing your graphics IEEE suggests that you use of one of the 
+following Open Type fonts: Times New Roman, Helvetica, Arial, Cambria, and 
+Symbol. If you are supplying EPS, PS, or PDF files all fonts must be 
+embedded. Some fonts may only be native to your operating system; without 
+the fonts embedded, parts of the graphic may be distorted or missing.
+
+A safe option when finalizing your figures is to strip out the fonts before 
+you save the files, creating ``outline'' type. This converts fonts to 
+artwork what will appear uniformly on any screen.
+
+\subsection{Using Labels Within Figures}
+
+\subsubsection{Figure Axis labels }
+Figure axis labels are often a source of confusion. Use words rather than 
+symbols. As an example, write the quantity ``Magnetization,'' or 
+``Magnetization M,'' not just ``M.'' Put units in parentheses. Do not label 
+axes only with units. As in Fig. 1, for example, write ``Magnetization 
+(A/m)'' or ``Magnetization (A$\cdot$m$^{-1}$),'' not just ``A/m.'' Do not label axes with a ratio of quantities and 
+units. For example, write ``Temperature (K),'' not ``Temperature/K.'' 
+
+Multipliers can be especially confusing. Write ``Magnetization (kA/m)'' or 
+``Magnetization (10$^{3}$ A/m).'' Do not write ``Magnetization 
+(A/m)$\,\times\,$1000'' because the reader would not know whether the top 
+axis label in Fig. 1 meant 16000 A/m or 0.016 A/m. Figure labels should be 
+legible, approximately 8 to 10 point type.
+
+\subsubsection{Subfigure Labels in Multipart Figures and Tables}
+Multipart figures should be combined and labeled before final submission. 
+Labels should appear centered below each subfigure in 8 point Times New 
+Roman font in the format of (a) (b) (c). 
+
+\subsection{File Naming}
+Figures (line artwork or photographs) should be named starting with the 
+first 5 letters of the author's last name. The next characters in the 
+filename should be the number that represents the sequential 
+location of this image in your article. For example, in author 
+``Anderson's'' paper, the first three figures would be named ander1.tif, 
+ander2.tif, and ander3.ps.
+
+Tables should contain only the body of the table (not the caption) and 
+should be named similarly to figures, except that `.t' is inserted 
+in-between the author's name and the table number. For example, author 
+Anderson's first three tables would be named ander.t1.tif, ander.t2.ps, 
+ander.t3.eps.
+
+\subsection{Referencing a Figure or Table Within Your Paper}
+When referencing your figures and tables within your paper, use the 
+abbreviation ``Fig.'' even at the beginning of a sentence. Do not abbreviate 
+``Table.'' Tables should be numbered with Roman Numerals.
+
+\subsection{Checking Your Figures: The IEEE Graphics Analyzer}
+The IEEE Graphics Analyzer enables authors to pre-screen their graphics for 
+compliance with IEEE Transactions and Journals standards before submission. 
+The online tool, located at
+\underline{http://graphicsqc.ieee.org/}, allows authors to 
+upload their graphics in order to check that each file is the correct file 
+format, resolution, size and colorspace; that no fonts are missing or 
+corrupt; that figures are not compiled in layers or have transparency, and 
+that they are named according to the IEEE Transactions and Journals naming 
+convention. At the end of this automated process, authors are provided with 
+a detailed report on each graphic within the web applet, as well as by 
+email.
+
+For more information on using the Graphics Analyzer or any other graphics 
+related topic, contact the IEEE Graphics Help Desk by e-mail at 
+graphics@ieee.org.
+
+\subsection{Submitting Your Graphics}
+Because IEEE will do the final formatting of your paper,
+you do not need to position figures and tables at the top and bottom of each 
+column. In fact, all figures, figure captions, and tables can be placed at 
+the end of your paper. In addition to, or even in lieu of submitting figures 
+within your final manuscript, figures should be submitted individually, 
+separate from the manuscript in one of the file formats listed above in 
+Section \ref{formats}. Place figure captions below the figures; place table titles 
+above the tables. Please do not include captions as part of the figures, or 
+put them in ``text boxes'' linked to the figures. Also, do not place borders 
+around the outside of your figures.
+
+\subsection{Color Processing/Printing in IEEE Journals}
+All IEEE Transactions, Journals, and Letters allow an author to publish 
+color figures on IEEE Xplore\textregistered\ at no charge, and automatically 
+convert them to grayscale for print versions. In most journals, figures and 
+tables may alternatively be printed in color if an author chooses to do so. 
+Please note that this service comes at an extra expense to the author. If 
+you intend to have print color graphics, include a note with your final 
+paper indicating which figures or tables you would like to be handled that 
+way, and stating that you are willing to pay the additional fee.
+
+
+\section{Conclusion}
+
+A conclusion section is not required. Although a conclusion may review the main points of the paper, do not replicate the abstract as the conclusion. A conclusion might elaborate on the importance of the work or suggest applications and extensions. 
+
+\section*{Acknowledgment}
+
+The preferred spelling of the word ``acknowledgment'' in American English is without an ``e'' after the ``g.'' Use the singular heading even if you have many acknowledgments. Avoid expressions such as ``One of us (S.B.A.) would like to thank . . . .'' Instead, write “F. A. Author thanks ... .” In most cases, sponsor and financial support acknowledgments are placed in the unnumbered footnote on the first page, not here.
+
+\section*{References and Footnotes}
+
+\subsection{References}
+
+References need not be cited in text. When they are, they appear on the line, in square brackets, inside the punctuation.  Multiple references are each numbered with separate brackets. When citing a section in a book, please give the relevant page numbers. In text, refer simply to the reference number. Do not use ``Ref.'' or ``reference'' except at the beginning of a sentence: ``Reference [3] shows . . . .'' Please do not use automatic endnotes in {\em Word}, rather, type the reference list at the end of the paper using the ``References'' style.
+
+Reference numbers are set flush left and form a column of their own, hanging out beyond the body of the reference. The reference numbers are on the line, enclosed in square brackets. In all references, the given name of the author or editor is abbreviated to the initial only and precedes the last name. Use them all; use {\em et al.} only if names are not given. Use commas around Jr., Sr., and III in names. Abbreviate conference titles.  When citing IEEE transactions, provide the issue number, page range, volume number, year, and/or month if available. When referencing a patent, provide the day and the month of issue, or application. References may not include all information; please obtain and include relevant information. Do not combine references. There must be only one reference with each number. If there is a URL included with the print reference, it can be included at the end of the reference.
+
+Other than books, capitalize only the first word in a paper title, except for proper nouns and element symbols. For papers published in translation journals, please give the English citation first, followed by the original foreign-language citation. See the end of this document for formats and examples of common references. For a complete discussion of references and their formats, see the IEEE style manual at www.ieee.org/authortools.
+
+\subsection{Footnotes}
+
+Number footnotes separately in superscripts (Insert $\mid$ Footnote).\footnote{It is recommended that footnotes be avoided (except for the unnumbered footnote with the receipt date on the first page). Instead, try to integrate the footnote information into the text.}  Place the actual footnote at the bottom of the column in which it is cited; do not put footnotes in the reference list (endnotes). Use letters for table footnotes (see Table I). 
+
+
+\section*{References}
+
+\subsection*{Basic format for books:}
+
+J. K. Author, ``Title of chapter in the book,'' in {\em Title of His Published Book}, xth ed. City of Publisher, (only U.S. State), Country: Abbrev. of Publisher, year, ch. x, sec. x, pp. xxx--xxx.
+
+\subsection*{Examples:}
+\def\refname{}
+\begin{thebibliography}{34}
+
+\bibitem{}G. O. Young, ``Synthetic structure of industrial plastics,'' in {\em Plastics}, 2nd ed., vol. 3, J. Peters, Ed. New York, NY, USA: McGraw-Hill, 1964, pp. 15--64.
+
+\bibitem{}W.-K. Chen, {\it Linear Networks and Systems}. Belmont, CA, USA: Wadsworth, 1993, pp. 123--135.
+
+\end{thebibliography}
+
+\subsection*{Basic format for periodicals:}
+
+J. K. Author, ``Name of paper,'' Abbrev. Title of Periodical, vol. x,   no. x, pp. xxx--xxx, Abbrev. Month, year, DOI. 10.1109.XXX.123--456.
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{2}
+
+\bibitem{}J. U. Duncombe, ``Infrared navigation Part I: An assessment of feasibility,'' {\em IEEE Trans. Electron Devices}, vol. ED-11, no. 1, pp. 34--39, Jan. 1959,10.1109/TED.2016.2628402.
+
+\bibitem{}E. P. Wigner, ``Theory of traveling-wave optical laser,''
+{\em Phys. Rev.},  vol. 134, pp. A635--A646, Dec. 1965.
+
+\bibitem{}E. H. Miller, ``A note on reflector arrays,'' {\em IEEE Trans. Antennas Propagat.}, to be published.
+\end{thebibliography}
+
+
+\subsection*{Basic format for reports:}
+
+J. K. Author, ``Title of report,'' Abbrev. Name of Co., City of Co., Abbrev. State, Country, Rep. xxx, year.
+
+\subsection*{Examples:}
+\begin{thebibliography}{34}
+\setcounter{enumiv}{5}
+
+\bibitem{} E. E. Reber, R. L. Michell, and C. J. Carter, ``Oxygen absorption in the earth’s atmosphere,'' Aerospace Corp., Los Angeles, CA, USA, Tech. Rep. TR-0200 (4230-46)-3, Nov. 1988.
+
+\bibitem{} J. H. Davis and J. R. Cogdell, ``Calibration program for the 16-foot antenna,'' Elect. Eng. Res. Lab., Univ. Texas, Austin, TX, USA, Tech. Memo. NGL-006-69-3, Nov. 15, 1987.
+\end{thebibliography}
+
+\subsection*{Basic format for handbooks:}
+
+{\em Name of Manual/Handbook}, x ed., Abbrev. Name of Co., City of Co., Abbrev. State, Country, year, pp. xxx--xxx.
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{7}
+
+\bibitem{} {\em Transmission Systems for Communications}, 3rd ed., Western Electric Co., Winston-Salem, NC, USA, 1985, pp. 44--60.
+
+\bibitem{} {\em Motorola Semiconductor Data Manual}, Motorola Semiconductor Products Inc., Phoenix, AZ, USA, 1989.
+\end{thebibliography}
+
+\subsection*{Basic format for books (when available online):}
+
+J. K. Author, ``Title of chapter in the book,'' in {\em Title of Published Book}, xth ed. City of Publisher, State, Country: Abbrev. of Publisher, year, ch. x, sec. x, pp. xxx xxx. [Online]. Available: http://www.web.com 
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{9}
+
+\bibitem{}G. O. Young, ``Synthetic structure of industrial plastics,'' in Plastics, vol. 3, Polymers of Hexadromicon, J. Peters, Ed., 2nd ed. New York, NY, USA: McGraw-Hill, 1964, pp. 15--64. [Online]. Available: http://www.bookref.com. 
+
+\bibitem{} {\em The Founders Constitution}, Philip B. Kurland and Ralph Lerner, eds., Chicago, IL, USA: Univ. Chicago Press, 1987. [Online]. Available: http://press-pubs.uchicago.edu/founders/
+
+\bibitem{} The Terahertz Wave eBook. ZOmega Terahertz Corp., 2014. [Online]. Available: http://dl.z-thz.com/eBook/zomega\_ebook\_pdf\_1206\_sr.pdf. Accessed on: May 19, 2014. 
+
+\bibitem{} Philip B. Kurland and Ralph Lerner, eds., {\em The Founders Constitution}. Chicago, IL, USA: Univ. of Chicago Press, 1987, Accessed on: Feb. 28, 2010, [Online] Available: http://press-pubs.uchicago.edu/founders/ 
+\end{thebibliography}
+
+\subsection*{Basic format for journals (when available online):}
+
+J. K. Author, ``Name of paper,'' {\em Abbrev. Title of Periodical}, vol. x, no. x, pp. xxx--xxx, Abbrev. Month, year. Accessed on: Month, Day, year, doi: 10.1109.XXX.123456, [Online].
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{13}
+
+\bibitem{}J. S. Turner, ``New directions in communications,'' {\em IEEE J. Sel. Areas Commun.}, vol. 13, no. 1, pp. 11--23, Jan. 1995. 
+
+\bibitem{} W. P. Risk, G. S. Kino, and H. J. Shaw, ``Fiber-optic frequency shifter using a surface acoustic wave incident at an oblique angle,'' {\em Opt. Lett.}, vol. 11, no. 2, pp. 115--117, Feb. 1986.
+
+\bibitem{} P. Kopyt {\em et al.}, ``Electric properties of graphene-based conductive layers from DC up to terahertz range,'' {\em IEEE THz Sci. Technol.}, to be published. doi: 10.1109/TTHZ.2016.2544142.
+\end{thebibliography}
+
+\subsection*{Basic format for papers presented at conferences (when available online):}
+
+J.K. Author. (year, month). Title. presented at abbrev. conference title. [Type of Medium]. Available: site/path/file
+
+\subsection*{Example:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{16}
+
+\bibitem{}PROCESS Corporation, Boston, MA, USA. Intranets: Internet technologies deployed behind the firewall for corporate productivity. Presented at INET96 Annual Meeting. [Online]. Available: http://home.process.com/Intranets/wp2.htp
+\end{thebibliography}
+
+\subsection*{Basic format for reports  and  handbooks (when available online):}
+  
+J. K. Author. ``Title of report,'' Company. City, State, Country. Rep. no., (optional: vol./issue), Date. [Online] Available: site/path/file 
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{17}
+
+\bibitem{}R. J. Hijmans and J. van Etten, ``Raster: Geographic analysis and modeling with raster data,'' R Package Version 2.0-12, Jan. 12, 2012. [Online]. Available: http://CRAN.R-project.org/package=raster 
+
+\bibitem{}Teralyzer. Lytera UG, Kirchhain, Germany [Online]. Available: http://www.lytera.de/Terahertz\_THz\_Spectroscopy.php?id=home, Accessed on: Jun. 5, 2014.
+\end{thebibliography}
+
+\subsection*{Basic format for computer programs and electronic documents (when available online):}
+
+Legislative body. Number of Congress, Session. (year, month day). {\em Number of bill or resolution, Title}. [Type of medium]. Available: site/path/file
+{\em NOTE:} ISO recommends that capitalization follow the accepted practice for the language or script in which the information is given.
+
+\subsection*{Example:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{19}
+
+\bibitem{}U. S. House. 102nd Congress, 1st Session. (1991, Jan. 11). {\em H. Con. Res. 1, Sense of the Congress on Approval of Military Action}. [Online]. Available: LEXIS Library: GENFED File: BILLS 
+\end{thebibliography}
+
+\subsection*{Basic format for patents (when available online):}
+
+Name of the invention, by inventor’s name. (year, month day). Patent Number [Type of medium]. Available:site/path/file
+
+\subsection*{Example:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{20}
+
+\bibitem{}Musical tooth brush with mirror, by L. M. R. Brooks. (1992, May 19). Patent D 326 189
+[Online]. Available: NEXIS Library: LEXPAT File:   DES 
+
+\end{thebibliography}
+
+\subsection*{Basic format for conference proceedings (published):}
+
+J. K. Author, ``Title of paper,'' in {\em Abbreviated Name of Conf.}, City of Conf., Abbrev. State (if given), Country, year, pp. xxx--xxx.
+
+\subsection*{Example:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{21}
+
+\bibitem{}D. B. Payne and J. R. Stern, ``Wavelength-switched passively coupled single-mode optical network,'' in {\em Proc. IOOC-ECOC}, Boston, MA, USA, 1985,
+pp. 585--590.
+
+\end{thebibliography}
+
+\subsection*{Example for papers presented at conferences (unpublished):}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{22}
+
+\bibitem{}D. E behard and E. Voges, ``Digital single sideband detection for inter ferometric sensors,'' presented at the {\em 2nd Int. Conf. Optical Fiber Sensors}, Stuttgart, Germany, Jan. 2--5, 1984.
+\end{thebibliography}
+
+\subsection*{Basic formatfor patents:}
+
+J. K. Author, ``Title of patent,'' U. S. Patent x xxx xxx, Abbrev. Month, day, year.
+
+\subsection*{Example:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{23}
+
+\bibitem{}G. Brandli and M. Dick, ``Alternating current fed power supply,'' U. S. Patent 4 084 217, Nov. 4, 1978.
+\end{thebibliography}
+
+\subsection*{Basic format for theses (M.S.) and dissertations (Ph.D.):}
+
+a) J. K. Author, ``Title of thesis,'' M. S. thesis, Abbrev. Dept., Abbrev. Univ., City of Univ., Abbrev. State, year.
+
+b) J. K. Author, ``Title of dissertation,'' Ph.D. dissertation, Abbrev. Dept., Abbrev. Univ., City of Univ., Abbrev. State, year.
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{24}
+
+\bibitem{}J. O. Williams, ``Narrow-band analyzer,'' Ph.D. dissertation, Dept. Elect. Eng., Harvard Univ., Cambridge, MA, USA, 1993.
+
+\bibitem{}N. Kawasaki, ``Parametric study of thermal and chemical nonequilibrium nozzle flow,'' M.S. thesis, Dept. Electron. Eng., Osaka Univ., Osaka, Japan, 1993.
+\end{thebibliography}
+
+\subsection*{Basic format for the most common types of unpublished references:}
+
+a) J. K. Author, private communication, Abbrev. Month, year.
+
+b) J. K. Author, ``Title of paper,'' unpublished.
+
+c) J. K. Author, ``Title of paper,'' to be published.
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{26}
+
+\bibitem{}A. Harrison, private communication, May 1995.
+
+\bibitem{}B. Smith, ``An approach to graphs of linear forms,'' unpublished.
+
+\bibitem{}A. Brahms, ``Representation error for real numbers in binary computer arithmetic,'' IEEE Computer Group Repository, Paper R-67-85.
+\end{thebibliography}
+
+\subsection*{Basic formats for standards:}
+
+a) {\em Title of Standard}, Standard number, date.
+
+b) {\em Title of Standard}, Standard number, Corporate author, location, date.
+
+\subsection*{Examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{29}
+
+
+\bibitem{}IEEE Criteria for Class IE Electric Systems, IEEE Standard 308, 1969.
+
+\bibitem{} Letter Symbols for Quantities, ANSI Standard Y10.5-1968.
+\end{thebibliography}
+
+\subsection*{Article number in reference examples:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{31}
+
+\bibitem{}R. Fardel, M. Nagel, F. Nuesch, T. Lippert, and A. Wokaun, ``Fabrication of organic light emitting diode pixels by laser-assisted forward transfer,'' {\em Appl. Phys. Lett.}, vol. 91, no. 6, Aug. 2007, Art. no. 061103. 
+
+\bibitem{} J. Zhang and N. Tansu, ``Optical gain and laser characteristics of InGaN quantum wells on ternary InGaN substrates,'' {\em IEEE Photon.} J., vol. 5, no. 2, Apr. 2013, Art. no. 2600111
+\end{thebibliography}
+
+\subsection*{Example when using et al.:}
+
+\begin{thebibliography}{34}
+\setcounter{enumiv}{33}
+
+\bibitem{}S. Azodolmolky {\em et al.}, Experimental demonstration of an impairment aware network planning and operation tool for transparent/translucent optical networks,'' {\em J. Lightw. Technol.}, vol. 29, no. 4, pp. 439--448, Sep. 2011.
+\end{thebibliography}
+
+\end{document}
