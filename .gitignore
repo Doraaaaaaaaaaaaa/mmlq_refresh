@@ -10,6 +10,8 @@ __pycache__/
 *.bin
 save/
 checkpoints/
+aestheval/
+ammnet_zip/
 
 # 数据集文件（太大，不上传）
 *.pkl
@@ -22,6 +24,8 @@ checkpoints/
 *.pdf
 paper_content.txt
 paper_content_2.txt
+attr_path.txt
+paper_paths.txt
 
 # LaTeX build artifacts
 *.aux
