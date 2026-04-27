@@ -23,6 +23,26 @@ checkpoints/
 paper_content.txt
 paper_content_2.txt
 
+# LaTeX build artifacts
+*.aux
+*.log
+*.synctex.gz
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+*.xdv
+texput.log
+
+# Local paper-inspection renders and duplicated source images
+clip_page-*.png
+*ChatGPT Image Figure1.png
+*演示文稿2.png
+
 # IDE
 .vscode/
 .idea/
