@@ -171,9 +171,11 @@ class TextEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-        self.bert = BertModel.from_pretrained("bert-base-uncased",
-                                              output_hidden_states=True)
+        _bert_name = "bert-base-uncased"
+        self.tokenizer = BertTokenizer.from_pretrained(
+            _bert_name, local_files_only=True)
+        self.bert = BertModel.from_pretrained(
+            _bert_name, output_hidden_states=True, local_files_only=True)
         # 冻结 BERT
         for p in self.bert.parameters():
             p.requires_grad = False
@@ -658,3 +660,151 @@ class ImprovedIAAModel(nn.Module):
         feat = self.pred_proj(torch.cat([fv, ft], dim=-1))   # (B, 768)
         logits = self.pred_head(feat)                         # (B, 10)
         return self.softmax(logits)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 消融实验变体模型
+#
+# ablation_mode (在 config 中设置) 对应 Table III 的各行：
+#   "baseline"  → Baseline：只用 CLIP 视觉特征，不加文本
+#   "concat"    → B1：CLIP [CLS] + BERT [CLS] 直接拼接
+#   "direct_ca" → B2：单层直接 CrossAttn（MMLQ-style），无层级聚合
+#   "icif_ha"   → B3：完整 ICIF+HA，不加属性模块
+#   None/"full" → Ours：完整模型（使用 ImprovedIAAModel）
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AblationModel(nn.Module):
+    """消融变体：Baseline / B1(concat) / B2(direct_ca) / B3(icif_ha)"""
+
+    def __init__(self, config):
+        super().__init__()
+        self.mode = config.get("ablation_mode", "full")
+        qs      = config["query_size"]          # 768
+        nv      = config.get("num_visual_query", 2)
+        nt      = config.get("num_text_query", 2)
+        nh      = config.get("num_attn_heads", 8)
+        dropout = config.get("dropout", 0.1)
+
+        # ── 编码器（所有变体共用） ──────────────────────────────────────────
+        self.visual_encoder = VisualEncoder(config)
+        if self.mode != "baseline":
+            self.text_encoder = TextEncoder(config)
+
+        # ── B2 (direct_ca)：单层直接 CrossAttn ──────────────────────────────
+        if self.mode == "direct_ca":
+            # 只用最后一层（层索引 3），可学习 Query 直接做 CrossAttn
+            self.vq = nn.Parameter(torch.zeros(1, nv, qs))
+            self.tq = nn.Parameter(torch.zeros(1, nt, qs))
+            nn.init.trunc_normal_(self.vq, std=0.02)
+            nn.init.trunc_normal_(self.tq, std=0.02)
+            self.v_cross = CrossAttnBlock(qs, nh, dropout)
+            self.t_cross = CrossAttnBlock(qs, nh, dropout)
+            self.pred_proj = nn.Linear(qs * 2, qs)
+            self.pred_head = nn.Sequential(
+                nn.Linear(qs, qs), nn.GELU(), nn.Dropout(dropout), nn.Linear(qs, 10)
+            )
+
+        # ── B3 (icif_ha)：完整 ICIF+HA，不加 AR ────────────────────────────
+        elif self.mode in ("icif", "icif_ha"):
+            self.visual_queries = nn.ParameterList([
+                nn.Parameter(torch.zeros(1, nv, qs)) for _ in range(4)
+            ])
+            self.text_queries = nn.ParameterList([
+                nn.Parameter(torch.zeros(1, nt, qs)) for _ in range(4)
+            ])
+            for p in list(self.visual_queries) + list(self.text_queries):
+                nn.init.trunc_normal_(p, std=0.02)
+            self.fusion_layers = nn.ModuleList([
+                WeakInteractionFusion(dim=qs, num_heads=nh, dropout=dropout)
+                for _ in range(4)
+            ])
+            hier_depth = config.get("hier_attn_layers", 2)
+            self.visual_hier_agg = HierarchicalAttentionAggregator(
+                dim=qs, num_layers=4, num_heads=nh, depth=hier_depth, dropout=dropout)
+            self.text_hier_agg = HierarchicalAttentionAggregator(
+                dim=qs, num_layers=4, num_heads=nh, depth=hier_depth, dropout=dropout)
+            self.pred_proj = nn.Linear(qs * 2, qs)
+            self.pred_head = nn.Sequential(
+                nn.Linear(qs, qs), nn.GELU(), nn.Dropout(dropout), nn.Linear(qs, 10)
+            )
+
+        # ── Baseline / B1 (concat)：简单 MLP ────────────────────────────────
+        else:
+            in_dim = qs if self.mode in ("baseline", "text_only") else qs * 2
+            self.pred_proj = nn.Linear(in_dim, qs)
+            self.pred_head = nn.Sequential(
+                nn.Linear(qs, qs), nn.GELU(), nn.Dropout(dropout), nn.Linear(qs, 10)
+            )
+
+        self.softmax = nn.Softmax(dim=-1)
+
+    # ── Forward ──────────────────────────────────────────────────────────────
+
+    def forward(self, samples):
+        image    = samples["image"]
+        captions = samples["caption"]
+        B = image.shape[0]
+
+        # ── Baseline：只用 CLIP 最后层 [CLS] ─────────────────────────────────
+        if self.mode == "baseline":
+            V_list = self.visual_encoder(image)     # 4 × (B, 257, 768)
+            cls_v  = V_list[-1][:, 0, :]            # (B, 768) — [CLS] token
+            feat   = self.pred_proj(cls_v)
+            return self.softmax(self.pred_head(feat))
+
+        # ── B1 concat：[CLIP CLS, BERT CLS] 直接拼接 ─────────────────────────
+        if self.mode == "text_only":
+            T_list, _ = self.text_encoder(captions)
+            cls_t = T_list[-1][:, 0, :]
+            feat = self.pred_proj(cls_t)
+            return self.softmax(self.pred_head(feat))
+
+        if self.mode == "concat":
+            V_list = self.visual_encoder(image)
+            T_list, _ = self.text_encoder(captions)
+            cls_v = V_list[-1][:, 0, :]             # (B, 768)
+            cls_t = T_list[-1][:, 0, :]             # (B, 768)
+            feat  = self.pred_proj(torch.cat([cls_v, cls_t], dim=-1))
+            return self.softmax(self.pred_head(feat))
+
+        # ── B2 direct_ca：单层直接 CrossAttn（MMLQ-style） ───────────────────
+        if self.mode == "direct_ca":
+            V_list = self.visual_encoder(image)
+            T_list, text_mask = self.text_encoder(captions)
+            pad_mask = (text_mask == 0)
+            # 只取最后一层（层索引 3）
+            V = V_list[-1]                          # (B, 257, 768)
+            T = T_list[-1]                          # (B, seq, 768)
+            VQ = self.vq.expand(B, -1, -1)
+            TQ = self.tq.expand(B, -1, -1)
+            # 直接 CrossAttn：Query 看对方模态（跳过模态内步骤）
+            VQ = self.v_cross(VQ, V)                # (B, nv, 768)
+            TQ = self.t_cross(TQ, T, key_padding_mask=pad_mask)  # (B, nt, 768)
+            h_v = VQ.mean(dim=1)                    # (B, 768)
+            h_t = TQ.mean(dim=1)                    # (B, 768)
+            feat = self.pred_proj(torch.cat([h_v, h_t], dim=-1))
+            return self.softmax(self.pred_head(feat))
+
+        # ── B3 icif_ha：完整 ICIF+HA，无属性模块 ────────────────────────────
+        if self.mode in ("icif", "icif_ha"):
+            V_list = self.visual_encoder(image)
+            T_list, text_mask = self.text_encoder(captions)
+            pad_mask = (text_mask == 0)
+            all_VQ, all_TQ = [], []
+            for l in range(4):
+                VQ = self.visual_queries[l].expand(B, -1, -1)
+                TQ = self.text_queries[l].expand(B, -1, -1)
+                VQ, TQ = self.fusion_layers[l](
+                    VQ, TQ, V_list[l], T_list[l], text_pad_mask=pad_mask)
+                all_VQ.append(VQ)
+                all_TQ.append(TQ)
+            if self.mode == "icif_ha":
+                VQ_global = self.visual_hier_agg(all_VQ)    # (B, 768)
+                TQ_global = self.text_hier_agg(all_TQ)      # (B, 768)
+            else:
+                VQ_global = torch.stack([q.mean(dim=1) for q in all_VQ], dim=1).mean(dim=1)
+                TQ_global = torch.stack([q.mean(dim=1) for q in all_TQ], dim=1).mean(dim=1)
+            feat = self.pred_proj(torch.cat([VQ_global, TQ_global], dim=-1))
+            return self.softmax(self.pred_head(feat))
+
+        raise ValueError(f"Unknown ablation_mode: {self.mode}")

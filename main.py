@@ -10,6 +10,7 @@
   6. 保存 best model（按 SRCC）
 """
 
+import argparse
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -17,7 +18,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.cuda.amp import GradScaler
 from torch.amp import autocast
-from model import ImprovedIAAModel
+from model import ImprovedIAAModel, AblationModel
 import os
 import math
 import random
@@ -48,7 +49,9 @@ def build_optimizer(model, base_lr, weight_decay=1e-4):
       - BERT（已冻结，不传） → 不参与优化
       - 其余（head, adapter, fusion, attr）→ base_lr
     """
-    clip_ids = {id(p) for p in model.visual_encoder.clip.parameters()}
+    clip_ids = set()
+    if hasattr(model, "visual_encoder") and hasattr(model.visual_encoder, "clip"):
+        clip_ids = {id(p) for p in model.visual_encoder.clip.parameters()}
 
     clip_params  = [p for p in model.parameters()
                    if p.requires_grad and id(p) in clip_ids]
@@ -82,6 +85,17 @@ def build_scheduler(optimizer, total_steps, warmup_ratio=0.05):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="config.yml", help="Path to YAML config file.")
+    parser.add_argument("--resume", default=None, help="Override resume checkpoint path in the config.")
+    parser.add_argument(
+        "--ablation-mode",
+        default=None,
+        choices=["baseline", "text_only", "concat", "direct_ca", "icif", "icif_ha"],
+        help="Override ablation_mode in the config.",
+    )
+    args = parser.parse_args()
+
     # ── 随机种子 ────────────────────────────────────────────────────────────
     seed = 42
     random.seed(seed);  np.random.seed(seed);  torch.manual_seed(seed)
@@ -94,8 +108,12 @@ def main():
     use_amp = torch.cuda.is_available()
 
     # ── 配置 ────────────────────────────────────────────────────────────────
-    with open("config.yml", encoding="utf-8") as f:
+    with open(args.config, encoding="utf-8") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
+    if args.ablation_mode is not None:
+        config["ablation_mode"] = args.ablation_mode
+    if args.resume is not None:
+        config["resume"] = args.resume
 
     accum_steps  = config.get("accum_steps", 4)
     base_lr      = config["lr"]
@@ -104,7 +122,9 @@ def main():
 
     # ── 保存目录 ─────────────────────────────────────────────────────────────
     os.makedirs("./save", exist_ok=True)
-    save_name    = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    ablation_mode = config.get("ablation_mode", None)
+    _suffix      = f"_abl-{ablation_mode}" if ablation_mode else ""
+    save_name    = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + _suffix
     save_dir     = os.path.join("./save", save_name)
     pt_save_dir  = os.path.join(save_dir, "checkpoints")
     os.makedirs(save_dir, exist_ok=True)
@@ -112,7 +132,9 @@ def main():
     results_path = os.path.join(save_dir, "results.txt")
 
     writer = SummaryWriter(log_dir=save_dir)
-    copy("config.yml", save_dir)
+    copy(args.config, os.path.join(save_dir, os.path.basename(args.config)))
+    with open(os.path.join(save_dir, "effective_config.yml"), "w", encoding="utf-8") as f:
+        yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
     with open(results_path, "w") as f:
         f.write("epoch, time_elapsed, [mse, srcc, plcc, acc, emd1, emd2]\n")
 
@@ -131,7 +153,11 @@ def main():
     )
 
     # ── 模型 ────────────────────────────────────────────────────────────────
-    model = ImprovedIAAModel(config).to(device)
+    if config.get("ablation_mode"):
+        model = AblationModel(config).to(device)
+        print(f"[Ablation] mode = {config['ablation_mode']}")
+    else:
+        model = ImprovedIAAModel(config).to(device)
 
     # ── 优化器 / 调度器 ───────────────────────────────────────────────────────
     steps_per_epoch = math.ceil(len(train_loader) / accum_steps)

@@ -58,3 +58,16 @@ Thumbs.db
 # TensorBoard 日志
 runs/
 logs/
+
+# Local assistant/tool settings
+.claude/
+
+# Local scratch/extraction outputs
+pdf_extract_tmp/
+*.bak_before_cleanup
+
+# Third-party baseline checkouts; keep only local measurement helpers
+duibishiyan1/*
+!duibishiyan1/measure_complexity/
+!duibishiyan1/measure_complexity/**
+duibishiyan1/measure_complexity/run_all_results.json

@@ -22,7 +22,7 @@
 \maketitle
 
 \begin{abstract}
-Vision-language models have shown strong potential in image aesthetic assessment (IAA), yet effectively exploiting user comments with limited trainable parameters remains challenging. In this letter, we introduce LQ-ICIF, a parameter-efficient multimodal framework for aesthetic score distribution prediction. To capture aesthetic cues from images and comments, LQ-ICIF integrates two key components: 1) learnable query-guided intra-cross interaction fusion, which extracts hierarchical visual-comment representations from frozen CLIP and BERT backbones, and 2) attribute-guided representation refinement, which incorporates photographic aesthetic attributes predicted by a frozen PARN model as structured priors. Experiments show that LQ-ICIF achieves an SRCC of 0.9145, PLCC of 0.9213, classification accuracy of 87.51\%, and EMD of 0.0403, demonstrating accurate and efficient multimodal aesthetic distribution prediction.
+Vision-language models have shown strong potential in image aesthetic assessment (IAA), yet effectively exploiting user comments while preserving complementary aesthetic cues across multiple representation levels remains challenging. In this letter, we introduce LQ-ICIF, a multimodal framework for aesthetic score distribution prediction that leverages frozen pretrained visual, textual, and attribute encoders. To capture hierarchical aesthetic cues from images and comments, LQ-ICIF integrates two key components: 1) learnable query-guided intra-cross interaction fusion, which extracts multi-level visual-comment representations from frozen CLIP and BERT backbones, and 2) attribute-guided representation refinement, which incorporates photographic aesthetic attributes predicted by a frozen PARN model as structured priors. Experiments on the AVA dataset show that LQ-ICIF achieves an SRCC of 0.9145, PLCC of 0.9213, classification accuracy of 87.51\%, and EMD of 0.0403, demonstrating accurate and robust multimodal aesthetic distribution prediction.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -184,29 +184,39 @@ Following the image-comment setting of LQ-ICIF, all comments matched to an image
 \caption{Performance Comparison on Aesthetic Assessment Datasets}
 \label{tab:main_comparison}
 \centering
-\footnotesize
-\setlength{\tabcolsep}{2.2pt}
+\scriptsize
+\setlength{\tabcolsep}{1.6pt}
 \begin{tabular}{c|c|l|cccc}
 \hline
 Category & Input$^{1}$ & Method & \multicolumn{4}{c}{AVA$^{2}$} \\
 \cline{4-7}
- & & & SRCC & PLCC & ACC & EMD \\
+ & & & SRCC & PLCC & Acc. & EMD \\
 \hline
-Visual-only & $I$ & NIMA [3] & 0.2529 & 0.2593 & -- & -- \\
-metrics & $I$ & ViT-B/16$^{3}$ & 0.5527 & 0.5573 & 75.70 & -- \\
- & $I$ & ViT-B/16-IN21K$^{3}$ & 0.5701 & 0.5703 & 76.44 & -- \\
+Visual & $I$ & NIMA [3] & 0.612 & 0.636 & 81.51 & 0.050 \\
+& $I$ & GPF-CNN [X] & 0.690 & 0.704 & 81.81 & 0.045 \\
+& $I$ & HLA-GCN [X] & 0.665 & 0.687 & 84.60 & 0.043 \\
+& $I$ & MUSIQ [X] & 0.726 & 0.738 & 81.50 & -- \\
+& $I$ & TANet [X] & 0.758 & 0.765 & -- & 0.047 \\
+& $I$ & MILNet [X] & 0.758 & 0.758 & 81.80 & -- \\
+& $I$ & IAA-LQ [X] & 0.791 & 0.790 & -- & -- \\
+& $I$ & TCD-G [X] & 0.817 & 0.818 & 84.20 & -- \\
+& $I$ & AesMamba-V$\dagger$ [X] & 0.769 & 0.774 & 85.00 & -- \\
 \hline
-Multimodal & $I+C$ & VILA [5] & TBD & TBD & TBD & TBD \\
-metrics & $I+C$ & MMLQ [6] & TBD & TBD & TBD & TBD \\
- & $I+C+A$ & Ours & \textbf{0.9145} & \textbf{0.9213} & \textbf{87.51} & \textbf{0.0403} \\
+Multi. & $I+C$ & VILA-R [5] & 0.774 & 0.774 & -- & -- \\
+& $I+C+A$ & AAM-Net [X] & 0.780 & 0.803 & 85.69 & 0.037 \\
+& $I+C+A$ & AMM-Net [X] & 0.816 & 0.830 & 87.58 & 0.035 \\
+& $I+C$ & MMLQ [6] & 0.876 & 0.896 & 89.03 & 0.029 \\
+& $I+C$ & MSCAN$^{\ddagger}$ [X] & 0.852 & 0.862 & 86.70 & 0.035 \\
+& $I+C$ & AesMamba-M$^{\ddagger}$ [X] & 0.892 & 0.899 & 89.60 & 0.031 \\
+& $I+C+A$ & Ours & \textbf{0.9145} & \textbf{0.9213} & \textbf{87.51} & \textbf{0.0403} \\
 \hline
 \end{tabular}
 \vspace{2pt}
 \begin{flushleft}
 \scriptsize
 $^{1}$ $I$, $C$, and $A$ denote image, comment, and attribute prior.\\
-$^{2}$ AVA results are evaluated on the current test split.\\
-$^{3}$ ViT results are internal preliminary baselines. TBD denotes comparable results to be filled.
+$^{2}$ Results are collected from the original papers; protocol-aligned reproduction remains ongoing. ``--'' indicates that the metric is not reported.\\
+$\dagger$ denotes the stronger visual variant reported in AesMamba. $\ddagger$ denotes results reported on AVA-Captions rather than the standard AVA split.
 \end{flushleft}
 \end{table}
 
@@ -233,9 +243,10 @@ Method & Input$^{1}$ & \multicolumn{3}{c}{AADB} \\
 \cline{3-5}
  & & SRCC & PLCC & ACC \\
 \hline
-NIMA [3] & $I$ & TBD & TBD & TBD \\
-VILA [5] & $I+C$ & TBD & TBD & TBD \\
-MMLQ [6] & $I+C$ & TBD & TBD & TBD \\
+NIMA (2018) [3] & $I$ & TBD & TBD & TBD \\
+AMM-Net (2023) [X] & $I+C$ & TBD & TBD & TBD \\
+VILA (2023) [5] & $I+C$ & TBD & TBD & TBD \\
+MMLQ (2024) [6] & $I+C$ & TBD & TBD & TBD \\
 Ours & $I+C+A$ & TBD & TBD & TBD \\
 \hline
 \end{tabular}
@@ -257,24 +268,24 @@ We will conduct ablation experiments to verify the contribution of each componen
 \setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{l|cccc|cccc}
 \hline
-Method & C & QF & HA & AR & SRCC & PLCC & ACC & EMD \\
+Method & C & Direct\,CA & ICIF+HA & AR & SRCC & PLCC & ACC & EMD \\
 \hline
 Baseline & -- & -- & -- & -- & TBD & TBD & TBD & TBD \\
 $B_1$ & \checkmark & -- & -- & -- & TBD & TBD & TBD & TBD \\
 $B_2$ & \checkmark & \checkmark & -- & -- & TBD & TBD & TBD & TBD \\
-$B_3$ & \checkmark & \checkmark & \checkmark & -- & TBD & TBD & TBD & TBD \\
-Ours & \checkmark & \checkmark & \checkmark & \checkmark & 0.9145 & 0.9213 & 87.51 & 0.0403 \\
+$B_3$ & \checkmark & -- & \checkmark & -- & TBD & TBD & TBD & TBD \\
+Ours  & \checkmark & -- & \checkmark & \checkmark & \textbf{0.9145} & \textbf{0.9213} & \textbf{87.51} & \textbf{0.0403} \\
 \hline
 \end{tabular}
 \vspace{2pt}
 \begin{flushleft}
-\scriptsize C, QF, HA, and AR denote comment input, query-guided fusion, hierarchical aggregation, and attribute-guided refinement, respectively.
+\scriptsize C: comment input. Direct\,CA: direct single-layer cross-attention following MMLQ~[6]. ICIF+HA: learnable query-guided intra-cross interaction fusion with hierarchical aggregation. AR: attribute-guided representation refinement.
 \end{flushleft}
 \end{table}
 
 \subsection{Model Complexity Analysis}
 
-To evaluate the efficiency of the proposed method, we compare trainable parameters, computational cost, and AVA performance in Table~\ref{tab:complexity}. This analysis is used to verify whether LQ-ICIF achieves a favorable trade-off between accuracy and efficiency.
+To evaluate the efficiency of the proposed method, we compare trainable parameters, adaptation computational cost, and AVA performance in Table~\ref{tab:complexity}. GMACs are measured with \texttt{thop} on a single image of $224\times224$ and the corresponding text input when applicable. For methods using frozen pretrained encoders, the backbone computations are excluded to focus on task-specific trainable modules, following the parameter-efficient comparison protocol. This analysis verifies whether LQ-ICIF achieves a favorable accuracy-efficiency trade-off.
 
 \begin{table}[!t]
 \caption{Comparison of Model Complexity and Performance}
@@ -282,16 +293,22 @@ To evaluate the efficiency of the proposed method, we compare trainable paramete
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3.2pt}
-\begin{tabular}{l|ccc}
+\begin{tabular}{l|l|ccc}
 \hline
-Method & Params (M) & GMACs & SRCC \\
+Method & Input & Train.\,Params\,(M) & GMACs & SRCC \\
 \hline
-NIMA [3] & TBD & TBD & 0.2529 \\
-ViT-B/16 & TBD & TBD & 0.5527 \\
-MMLQ [6] & TBD & TBD & TBD \\
-Ours & TBD & TBD & 0.9145 \\
+TANet [X] & $I$ & 13.883 & 2.165 & 0.758 \\
+Charm [X] & $I$ & 22.064 & 5.525 & -- \\
+AesMamba-V [X] & $I$ & 22.818 & 2.843$^{*}$ & 0.769 \\
+MMLQ [6] & $I+C$ & 60.266 & 6.193 & 0.876 \\
+AesMamba-M [X] & $I+C$ & 139.388 & 3.539$^{*}$ & 0.892 \\
+Ours & $I+C+A$ & 175.870 & 10.837 & \textbf{0.9145} \\
 \hline
 \end{tabular}
+\vspace{2pt}
+\begin{flushleft}
+\scriptsize $^{*}$ GMACs are approximate because the custom \texttt{mamba\_ssm} selective-scan CUDA operator was unavailable during profiling; parameter counts are unaffected. ``--'' indicates that the metric is not reported.
+\end{flushleft}
 \end{table}
 
 \subsection{Qualitative Ranking Comparison}
