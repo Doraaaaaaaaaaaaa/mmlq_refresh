@@ -66,6 +66,9 @@ logs/
 pdf_extract_tmp/
 *.bak_before_cleanup
 
+# Local AutoDL packaging caches and downloaded model snapshots
+AutoDL_upload_package/cache/
+
 # Third-party baseline checkouts; keep only local measurement helpers
 duibishiyan1/*
 !duibishiyan1/measure_complexity/
