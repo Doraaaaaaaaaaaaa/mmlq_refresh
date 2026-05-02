@@ -80,6 +80,78 @@ def build_scheduler(optimizer, total_steps, warmup_ratio=0.05):
     return LambdaLR(optimizer, lr_lambda)
 
 
+def _trainable_model_state_dict(model):
+    """只保存可训练参数；冻结骨干在初始化时从本地预训练权重重新加载。"""
+    trainable_names = {
+        name for name, param in model.named_parameters() if param.requires_grad
+    }
+    return {
+        name: tensor.detach().cpu()
+        for name, tensor in model.state_dict().items()
+        if name in trainable_names
+    }
+
+
+def _model_state_dict_for_checkpoint(model, trainable_only=True):
+    if trainable_only:
+        return _trainable_model_state_dict(model)
+    return {
+        name: tensor.detach().cpu()
+        for name, tensor in model.state_dict().items()
+    }
+
+
+def _save_checkpoint(path, checkpoint):
+    tmp_path = f"{path}.tmp"
+    torch.save(checkpoint, tmp_path)
+    os.replace(tmp_path, path)
+
+
+def _build_checkpoint(
+    epoch,
+    model,
+    optimizer,
+    scheduler,
+    best_srcc,
+    metrics,
+    trainable_only=True,
+    include_optimizer=True,
+):
+    checkpoint = {
+        "epoch": epoch,
+        "model_state_dict": _model_state_dict_for_checkpoint(
+            model, trainable_only=trainable_only
+        ),
+        "best_srcc": best_srcc,
+        "metrics": metrics,
+        "checkpoint_trainable_only": trainable_only,
+    }
+    if include_optimizer:
+        checkpoint["optimizer_state_dict"] = optimizer.state_dict()
+        checkpoint["scheduler_state_dict"] = scheduler.state_dict()
+    return checkpoint
+
+
+def evaluate_model(model, loader, device, use_amp, desc):
+    model.eval()
+    y_pred, y_true = [], []
+
+    with torch.no_grad():
+        for samples in tqdm(loader, desc=desc):
+            samples["image"] = samples["image"].to(device, non_blocking=True)
+            samples["dos"] = samples["dos"].to(device, non_blocking=True)
+
+            with autocast("cuda", enabled=use_amp):
+                output = model(samples)
+
+            y_pred.append(output.cpu())
+            y_true.append(samples["dos"].cpu())
+
+    y_pred = torch.cat(y_pred, dim=0).numpy()
+    y_true = torch.cat(y_true, dim=0).numpy()
+    return cal_metrics(y_pred, y_true)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 主函数
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,8 +168,16 @@ def main():
     )
     args = parser.parse_args()
 
+    # ── 配置 ────────────────────────────────────────────────────────────────
+    with open(args.config, encoding="utf-8") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    if args.ablation_mode is not None:
+        config["ablation_mode"] = args.ablation_mode
+    if args.resume is not None:
+        config["resume"] = args.resume
+
     # ── 随机种子 ────────────────────────────────────────────────────────────
-    seed = 42
+    seed = config.get("seed", 42)
     random.seed(seed);  np.random.seed(seed);  torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
@@ -107,50 +187,67 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     use_amp = torch.cuda.is_available()
 
-    # ── 配置 ────────────────────────────────────────────────────────────────
-    with open(args.config, encoding="utf-8") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    if args.ablation_mode is not None:
-        config["ablation_mode"] = args.ablation_mode
-    if args.resume is not None:
-        config["resume"] = args.resume
-
     accum_steps  = config.get("accum_steps", 4)
     base_lr      = config["lr"]
     lambda_mean  = config.get("lambda_mean", 0.2)
     lambda_rank  = config.get("lambda_rank", 0.1)
 
     # ── 保存目录 ─────────────────────────────────────────────────────────────
-    os.makedirs("./save", exist_ok=True)
+    save_root = config.get("save_root", "./save")
+    os.makedirs(save_root, exist_ok=True)
     ablation_mode = config.get("ablation_mode", None)
     _suffix      = f"_abl-{ablation_mode}" if ablation_mode else ""
     save_name    = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + _suffix
-    save_dir     = os.path.join("./save", save_name)
+    save_dir     = os.path.join(save_root, save_name)
     pt_save_dir  = os.path.join(save_dir, "checkpoints")
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(pt_save_dir, exist_ok=True)
     results_path = os.path.join(save_dir, "results.txt")
+    save_latest = config.get("save_latest", True)
+    save_best = config.get("save_best", True)
+    save_every_epoch = config.get("save_every_epoch", False)
+    checkpoint_trainable_only = config.get("checkpoint_trainable_only", True)
+    best_include_optimizer = config.get("best_include_optimizer", False)
 
     writer = SummaryWriter(log_dir=save_dir)
     copy(args.config, os.path.join(save_dir, os.path.basename(args.config)))
     with open(os.path.join(save_dir, "effective_config.yml"), "w", encoding="utf-8") as f:
         yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+    use_val_split = config.get("use_val_split", False)
+    selection_split = config.get("selection_split", "val" if use_val_split else "test")
+    if selection_split not in ["val", "test"]:
+        raise ValueError(f"Unsupported selection_split: {selection_split}")
+
     with open(results_path, "w") as f:
-        f.write("epoch, time_elapsed, [mse, srcc, plcc, acc, emd1, emd2]\n")
+        f.write(
+            f"epoch, time_elapsed, split={selection_split}, "
+            "[mse, srcc, plcc, acc, emd1, emd2]\n"
+        )
 
     # ── 数据集 ───────────────────────────────────────────────────────────────
     train_dataset = AVADataset(config, "train")
-    test_dataset  = AVADataset(config, "test")
     train_loader  = DataLoader(
         dataset=train_dataset, batch_size=config["batch_size"],
         shuffle=True, num_workers=config.get("num_workers", 8),
         pin_memory=True,
     )
+    val_loader = None
+    if use_val_split:
+        val_dataset = AVADataset(config, "val")
+        val_loader = DataLoader(
+            dataset=val_dataset, batch_size=config["batch_size"],
+            shuffle=False, num_workers=config.get("num_workers", 8),
+            pin_memory=True,
+        )
+    test_dataset  = AVADataset(config, "test")
     test_loader = DataLoader(
         dataset=test_dataset, batch_size=config["batch_size"],
         shuffle=False, num_workers=config.get("num_workers", 8),
         pin_memory=True,
     )
+    selection_loader = val_loader if selection_split == "val" else test_loader
+    if selection_loader is None:
+        raise ValueError("selection_split='val' requires use_val_split=True")
 
     # ── 模型 ────────────────────────────────────────────────────────────────
     if config.get("ablation_mode"):
@@ -235,57 +332,91 @@ def main():
         writer.add_scalar("loss/train", avg_loss, epoch)
         print(f"Epoch {epoch} | AvgLoss={avg_loss:.4f}")
 
-        # ── 评估 ─────────────────────────────────────────────────────────────
-        model.eval()
-        y_pred, y_true = [], []
-
-        with torch.no_grad():
-            for samples in tqdm(test_loader, desc=f"Eval epoch {epoch}"):
-                samples["image"] = samples["image"].to(device, non_blocking=True)
-                samples["dos"]   = samples["dos"].to(device, non_blocking=True)
-
-                with autocast("cuda", enabled=use_amp):
-                    output = model(samples)
-
-                y_pred.append(output.cpu())
-                y_true.append(samples["dos"].cpu())
-
-        y_pred = torch.cat(y_pred, dim=0).numpy()
-        y_true = torch.cat(y_true, dim=0).numpy()
-        metrics = cal_metrics(y_pred, y_true)
+        # ── 验证/测试集选择评估 ─────────────────────────────────────────────
+        metrics = evaluate_model(
+            model, selection_loader, device, use_amp,
+            desc=f"Eval {selection_split} epoch {epoch}",
+        )
         # metrics = [mse, srcc, plcc, acc, emd1, emd2]
         mse, srcc, plcc, acc, emd1, emd2 = metrics
 
         elapsed = datetime.now() - start_time
         log_str = f"{elapsed} [{mse:.4f}, {srcc:.4f}, {plcc:.4f}, {acc:.2f}%, {emd1:.4f}, {emd2:.4f}]"
-        print(f"Epoch {epoch} | {log_str}")
+        print(f"Epoch {epoch} | {selection_split} | {log_str}")
 
         with open(results_path, "a") as f:
             f.write(f"{epoch}, {log_str}\n")
 
-        writer.add_scalar("srcc/test",  srcc, epoch)
-        writer.add_scalar("plcc/test",  plcc, epoch)
-        writer.add_scalar("mse/test",   mse,  epoch)
-        writer.add_scalar("acc/test",   acc,  epoch)
+        writer.add_scalar(f"srcc/{selection_split}",  srcc, epoch)
+        writer.add_scalar(f"plcc/{selection_split}",  plcc, epoch)
+        writer.add_scalar(f"mse/{selection_split}",   mse,  epoch)
+        writer.add_scalar(f"acc/{selection_split}",   acc,  epoch)
 
         # ── 保存 checkpoint ───────────────────────────────────────────────────
-        ckpt_data = {
-            "epoch":              epoch,
-            "model_state_dict":   model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "scheduler_state_dict": scheduler.state_dict(),
-            "best_srcc":          best_srcc,
-            "metrics":            metrics,
-        }
-        # 每个 epoch 保存
-        torch.save(ckpt_data, os.path.join(pt_save_dir, f"checkpoint_{epoch}.pt"))
-
-        # 保存最优模型
-        if srcc > best_srcc:
+        is_best = srcc > best_srcc
+        if is_best:
             best_srcc = srcc
-            ckpt_data["best_srcc"] = best_srcc
-            torch.save(ckpt_data, os.path.join(pt_save_dir, "best_model.pt"))
+
+        ckpt_data = _build_checkpoint(
+            epoch=epoch,
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            best_srcc=best_srcc,
+            metrics=metrics,
+            trainable_only=checkpoint_trainable_only,
+            include_optimizer=True,
+        )
+
+        # latest.pt 每个 epoch 覆盖，避免 checkpoint_0/1/2... 堆满磁盘。
+        if save_latest:
+            _save_checkpoint(os.path.join(pt_save_dir, "latest.pt"), ckpt_data)
+
+        # 只有显式开启时才保留每个 epoch 的历史 checkpoint。
+        if save_every_epoch:
+            _save_checkpoint(
+                os.path.join(pt_save_dir, f"checkpoint_{epoch}.pt"),
+                ckpt_data,
+            )
+
+        # 保存最优模型；默认不带 optimizer，供评估/推理或后续微调加载。
+        if save_best and is_best:
+            best_ckpt_data = _build_checkpoint(
+                epoch=epoch,
+                model=model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                best_srcc=best_srcc,
+                metrics=metrics,
+                trainable_only=checkpoint_trainable_only,
+                include_optimizer=best_include_optimizer,
+            )
+            _save_checkpoint(os.path.join(pt_save_dir, "best_model.pt"), best_ckpt_data)
             print(f"  ★ New best SRCC={best_srcc:.4f} → saved best_model.pt")
+
+    if use_val_split:
+        best_path = os.path.join(pt_save_dir, "best_model.pt")
+        if os.path.exists(best_path):
+            ckpt = torch.load(best_path, map_location="cpu", weights_only=False)
+            model.load_state_dict(ckpt["model_state_dict"], strict=False)
+        test_metrics = evaluate_model(
+            model, test_loader, device, use_amp, desc="Final test"
+        )
+        mse, srcc, plcc, acc, emd1, emd2 = test_metrics
+        test_log = (
+            f"[{mse:.4f}, {srcc:.4f}, {plcc:.4f}, "
+            f"{acc:.2f}%, {emd1:.4f}, {emd2:.4f}]"
+        )
+        print(f"Final test selected_by={selection_split} | {test_log}")
+        with open(os.path.join(save_dir, "final_test_results.txt"), "w") as f:
+            f.write("selected_by, [mse, srcc, plcc, acc, emd1, emd2]\n")
+            f.write(f"{selection_split}, {test_log}\n")
+        writer.add_scalar("srcc/final_test", srcc, config["epochs"])
+        writer.add_scalar("plcc/final_test", plcc, config["epochs"])
+        writer.add_scalar("mse/final_test", mse, config["epochs"])
+        writer.add_scalar("acc/final_test", acc, config["epochs"])
+
+    writer.close()
 
 
 if __name__ == "__main__":

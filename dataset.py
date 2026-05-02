@@ -95,6 +95,9 @@ class AVADataset(Dataset):
         if split == "train":
             self.df = pd.read_csv(_resolve_split_csv(data_dir, "train", config))
             self.transform = train_tsfms
+        elif split == "val":
+            self.df = pd.read_csv(_resolve_split_csv(data_dir, "val", config))
+            self.transform = test_tsfms
         elif split == "test":
             self.df = pd.read_csv(_resolve_split_csv(data_dir, "test", config))
             self.transform = test_tsfms
