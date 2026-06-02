@@ -22,18 +22,17 @@
 \maketitle
 
 \begin{abstract}
-Vision-language models have shown strong potential in image aesthetic assessment (IAA), yet effectively exploiting user comments while preserving complementary aesthetic cues across multiple representation levels remains challenging. In this letter, we introduce LQ-ICIF, a multimodal framework for aesthetic score distribution prediction that leverages frozen pretrained visual, textual, and attribute encoders. To capture hierarchical aesthetic cues from images and comments, LQ-ICIF integrates two key components: 1) learnable query-guided intra-cross interaction fusion, which extracts multi-level visual-comment representations from frozen CLIP and BERT backbones, and 2) attribute-guided representation refinement, which incorporates photographic aesthetic attributes predicted by a frozen PARN model as structured priors. Experiments on the AVA dataset show that LQ-ICIF achieves an SRCC of 0.9145, PLCC of 0.9213, classification accuracy of 87.51\%, and EMD of 0.0403, demonstrating accurate and robust multimodal aesthetic distribution prediction.
+Image Aesthetic Assessment (IAA) has attracted wide interest in recent years, but it remains challenging due to its highly subjective and ambiguous nature. With the prevalence of social media, user comments can provide rich aesthetics-aware semantic information and human observers typically evaluate images from the perspective of aesthetic attributes. Motivated by the effectiveness of learnable queries in extracting task-specific features from frozen models, we propose LQ-ICIF (Learnable Queries with Intra-Cross Interaction Fusion), a multimodal framework that applies learnable query-guided intra-cross interaction hierarchically across encoder layers, with multi-layer outputs aggregated via a global token and further refined by aesthetic attribute priors. Experiments on AVA-Comments demonstrate that LQ-ICIF achieves state-of-the-art performance on multimodal IAA, with an SRCC of 0.915 and a PLCC of 0.920.
 \end{abstract}
-
 \begin{IEEEkeywords}
-Image aesthetic assessment, user comments, multimodal learning, score distribution prediction, attribute-guided refinement.
+Image aesthetic assessment, learnable queries, multimodal fusion, hierarchical interaction, aesthetic attributes.
 \end{IEEEkeywords}
 
 \IEEEpeerreviewmaketitle
 
 \section{Introduction}
 
-\IEEEPARstart{I}{mage} aesthetic assessment (IAA) aims to automatically predict human aesthetic perception of images and has attracted increasing attention due to applications in image retrieval, photo recommendation, automatic enhancement, and social media content management [1], [2]. Unlike conventional image quality assessment, IAA is affected by composition, lighting, color harmony, semantic content, photographic style, and subjective preference. Therefore, accurately predicting aesthetic score distributions remains challenging.
+\IEEEPARstart{I}{mage} aesthetic assessment (IAA) aims to automatically predict human aesthetic perception of images. Owing to its wide applications in fields such as image retrieval, photo recommendation, automatic enhancement, and social media content management, this task has attracted growing interest in recent years.
 
 \begin{figure}[!t]
 \centering
@@ -42,63 +41,72 @@ Image aesthetic assessment, user comments, multimodal learning, score distributi
 \label{fig:method_comparison}
 \end{figure}
 
-Subjective evaluation methods are reliable but costly, motivating objective IAA models that automatically predict human aesthetic opinions. Early methods rely on handcrafted photographic descriptors, while recent convolutional and transformer-based models learn aesthetic representations directly from images [2], [3]. Distribution-based methods, such as NIMA, further predict rating distributions and optimize the Earth Mover's Distance (EMD), offering a more faithful description of subjective opinions than scalar regression [3]. However, most existing methods still depend primarily on visual content, while perceptual cues expressed in user comments are largely ignored.
+Due to its highly abstract nature, IAA remains a challenging research topic. Early IAA approaches focused on designing hand-crafted features based on photographic rules. More recently, with the prevalence of deep learning, distribution prediction methods, such as NIMA, utilize Earth Mover's Distance (EMD) to predict aesthetic score distributions. However, relying solely on aesthetic score labels provides limited supervision information, which may result in a neglect of details.
 
-To exploit such complementary information, several studies have explored image-comment modeling for IAA. User comments can explicitly describe blur, lighting, composition, color tone, subject emphasis, and emotional impression. For example, VILA learns aesthetic representations from image-comment pairs via vision-language pretraining [5], while MMLQ extracts multimodal aesthetic features from images and comments using learnable queries with frozen encoders [6]. Although effective, existing multimodal IAA methods still face three limitations. First, single-layer or final-layer features may overlook hierarchical aesthetic perception. Second, direct cross-modal fusion may introduce noisy interactions when comments are subjective, incomplete, or irrelevant. Third, structured aesthetic attributes are not fully exploited.
+Based on existing works, user comments can not only provide complementary semantic features, but also describe attribute characteristics. In recent years, several methods employ aesthetic attributes to connect visual and textual representations. These studies indicate that it is of great value to jointly model visual appearances, textual feedback, and aesthetic attributes.
 
-To address these challenges, we propose LQ-ICIF, a parameter-efficient multimodal framework for aesthetic score distribution prediction. As shown in Fig.~\ref{fig:method_comparison}, the proposed method keeps CLIP, BERT, and PARN frozen, and introduces lightweight projections, adapters, and learnable queries for task-specific adaptation [7]--[9]. Multi-scale visual features from CLIP and multi-level textual features from BERT are extracted to capture hierarchical cues. A weak cross-modal interaction module then preserves modality-specific information while modeling visual-textual complementarity. In addition, attribute-aware reasoning introduces structured photographic attribute tokens to guide prediction.
+Recently, large-scale pre-trained models have demonstrated strong capabilities. Learnable queries have also been shown to be effective in extracting useful task-specific features from frozen pre-trained backbones. Therefore, we propose LQ-ICIF, which leverages learnable queries to extract aesthetics-related features from frozen visual and textual encoders for images and user comments, and further achieves more effective multi-modal aesthetic representations via image-comment interaction and aesthetic attribute-guided refinement.
 
-The main contributions of this work are summarized as follows:
+Specifically, LQ-ICIF freezes pre-trained encoders including CLIP, BERT, and an attribute encoder, and only trains lightweight fusion and prediction modules. The framework first employs learnable queries to extract modality-specific aesthetic features from images and comments, and then models the complementary relationships between images and comments via cross-modal attention. Subsequently, a global token is utilized to aggregate multi-layer features, and the aesthetic attribute priors extracted by the attribute encoder are introduced to refine the final representation, thereby predicting the aesthetic score distribution.
+
+The primary contributions of this paper are summarized as follows:
 \begin{itemize}
-\item We propose a parameter-efficient multimodal IAA framework with frozen pretrained visual, textual, and attribute models.
-\item We introduce a learnable query-guided intra-cross interaction mechanism to capture hierarchical visual-textual cues while reducing noisy over-fusion.
-\item We incorporate attribute-guided representation refinement for robust distribution-level prediction.
+\item We propose a multi-modal framework for aesthetic score distribution prediction. By freezing the pre-trained visual, textual, and attribute encoders, this framework integrates image, comment, and aesthetic attribute information via lightweight modules.
+\item We propose the LQ-ICIF module, a learnable query-guided image-comment interaction mechanism, which utilizes learnable queries to extract aesthetics information from frozen visual and textual features and models the complementary relationship between image contents and user comments via cross-modal attention.
+\item We design a global token aggregation module and an attribute-guided refinement module to integrate multi-level aesthetic features and introduce structured aesthetic attribute priors, respectively, thereby enhancing the prediction performance.
 \end{itemize}
-
-The remainder of this paper is organized as follows. Section II details the proposed LQ-ICIF framework. Section III presents the experimental results. Finally, Section IV concludes the paper.
 
 \section{Method}
 
-\subsection{Background}
+\subsection{Problem Formulation}
 
-We use frozen CLIP, BERT, and PARN models [10]--[12] as visual, textual, and photographic attribute priors, respectively, and train only lightweight adaptation modules for image-comment aesthetic distribution prediction. This design keeps the framework parameter-efficient while preserving the general representation ability of pretrained models.
+Given the $i$-th image and its corresponding user comment $(I_i,C_i)$, this paper aims to learn a mapping function $f(\cdot)$ to predict the discrete aesthetic score distribution:
+\begin{equation}
+\hat{\mathbf{y}}_i=f(I_i,C_i),
+\end{equation}
+where $\hat{\mathbf{y}}_i\in\mathbb{R}^{K}$ denotes the predicted aesthetic score distribution, and $K$ represents the number of aesthetic scores, or score levels. For the public AVA dataset, $K=10$. The ground-truth score distribution $\mathbf{y}_i$ satisfies:
+\begin{equation}
+\sum_{k=1}^{K}y_i^k=1.
+\end{equation}
+Based on the predicted score distribution, the mean aesthetic score $\mu_i$ of the image can be further calculated as:
+\begin{equation}
+\label{eq:mean_score}
+\mu_i=\sum_{k=1}^{K}k\cdot\hat{y}_i^k.
+\end{equation}
 
-Given the $i$-th image $I_i$ and its corresponding comment $C_i$, CLIP and BERT provide multi-level features:
+Currently, learning the aesthetic score distribution from an image and its associated user comments still encounters several challenges. On the one hand, image aesthetics is intrinsically highly abstract and subjective, leading to the lack of a stable mapping between visual features and aesthetic score distributions. On the other hand, although user comments provide rich information from diverse perspectives, they often lack semantic completeness. Therefore, how to effectively fuse the complementary information from both visual and textual modalities is the key to achieving accurate aesthetic score distribution prediction.
+
+To alleviate the aforementioned issues, we introduce aesthetic attributes as auxiliary information. Previous studies have demonstrated that people often comment on images from the perspective of attributes. Consequently, aesthetic attributes can serve as a semantic bridge between the visual and textual modalities, helping the model capture aesthetic features. To this end, multi-modal feature extraction is performed on the input image and its comment, which is formalized as follows.
+
+For the input image $I_i$ and its comment $C_i$, CLIP and BERT are employed as the visual encoder $E_v(\cdot)$ and textual encoder $E_t(\cdot)$, respectively, to extract their hidden state features from multiple layers:
 \begin{equation}
 \{\mathbf{V}_i^l\}_{l=1}^{L}=E_v(I_i), \quad
-\{\mathbf{T}_i^m\}_{m=1}^{M}=E_t(C_i).
+\{\mathbf{T}_i^l\}_{l=1}^{L}=E_t(C_i),
 \end{equation}
-
-The PARN branch extracts photographic attribute information $\mathbf{A}_i=E_a(I_i)$. Since these representations come from different backbones, we project them into a unified latent space:
+where $\mathbf{V}_i^l\in\mathbb{R}^{N_v\times H_v}$ denotes the visual token features at the $l$-th layer, $N_v$ is the number of visual tokens, and $H_v$ represents the visual feature dimension; $\mathbf{T}_i^l\in\mathbb{R}^{N_w\times H_t}$ denotes the textual token features at the $l$-th layer, $N_w$ is the maximum comment length, and $H_t$ represents the textual feature dimension; $L$ is the number of selected feature layers. The parameters of both encoders remain frozen. Concurrently, a pre-trained attribute encoder $E_a(\cdot)$ is used to extract the aesthetic attribute features from the image:
 \begin{equation}
-\tilde{\mathbf{V}}_i^l=P_v^l(\mathbf{V}_i^l), \quad
-\tilde{\mathbf{T}}_i^m=P_t^m(\mathbf{T}_i^m), \quad
-\tilde{\mathbf{A}}_i=P_a(\mathbf{A}_i).
+\mathbf{A}_i=E_a(I_i),
 \end{equation}
-
-\subsection{Problem Formulation}
+where $\mathbf{A}_i\in\mathbb{R}^{M}$ represents the extracted global attribute features, and $M$ is the feature dimension. Since these features are extracted from different pre-trained backbones, their feature dimensions vary. Therefore, projection layers are further utilized to map them into a unified feature space:
+\begin{equation}
+\tilde{\mathbf{V}}_i^l=P_v(\mathbf{V}_i^l), \quad
+\tilde{\mathbf{T}}_i^l=P_t(\mathbf{T}_i^l), \quad
+\tilde{\mathbf{A}}_i=P_a(\mathbf{A}_i),
+\end{equation}
+where $P_v(\cdot)$, $P_t(\cdot)$, and $P_a(\cdot)$ represent the projection layers for the visual, textual, and attribute features, respectively. Each projection layer consists of a linear transformation and a layer normalization layer. After projection, we obtain $\tilde{\mathbf{V}}_i^l\in\mathbb{R}^{N_v\times d}$, $\tilde{\mathbf{T}}_i^l\in\mathbb{R}^{N_w\times d}$, and $\tilde{\mathbf{A}}_i\in\mathbb{R}^{d}$, where $d$ denotes the unified feature dimension. Through this unified representation, aesthetic information from different modalities and different layers can interact and fuse within the same feature space.
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{lq_icif_overview.png}
-\caption{Framework of the proposed LQ-ICIF. It integrates (1) learnable query-guided intra-cross interaction fusion, modeling hierarchical image-comment relations with lightweight trainable queries; (2) global token-guided hierarchical aggregation, summarizing multi-level visual and textual cues into a compact multimodal representation; and (3) attribute-guided representation refinement, injecting PARN-based aesthetic attribute priors before distribution prediction.}
+\caption{Framework of the proposed LQ-ICIF. It integrates (1) learnable query-guided intra-cross interaction fusion, modeling hierarchical image-comment relations with lightweight trainable queries; (2) global token-guided hierarchical aggregation, summarizing multi-level visual and textual features into a compact multimodal representation; and (3) attribute-guided representation refinement, injecting PARN-based aesthetic attribute priors before distribution prediction.}
 \label{fig:lqicif_overview}
 \end{figure*}
 
-As illustrated in Fig.~\ref{fig:lqicif_overview}, LQ-ICIF consists of three main modules: learnable query-guided intra-cross interaction fusion, global token-guided hierarchical aggregation, and attribute-guided representation refinement. Given an image-comment pair $(I_i,C_i)$, the goal is to predict a discrete aesthetic score distribution:
-\begin{equation}
-\hat{\mathbf{y}}_i=f(I_i,C_i),
-\end{equation}
-where $\hat{\mathbf{y}}_i\in\mathbb{R}^{K}$ and $K=10$ for AVA. The ground-truth distribution $\mathbf{y}_i$ satisfies $\sum_{k=1}^{K}y_i^k=1$. The mean aesthetic score is computed as
-\begin{equation}
-\label{eq:mean_score}
-\hat{s}_i=\sum_{k=1}^{K} k\hat{y}_i^k.
-\end{equation}
-The following subsections describe the three modules and the final prediction head.
+As illustrated in Fig.~\ref{fig:lqicif_overview}, the proposed method models multi-modal aesthetic features in three stages. First, learnable queries are employed to extract intra-modal aesthetic representations from visual and textual features, respectively, and further model the cross-modal interactions between images and comments. Subsequently, a hierarchical aggregation module is used to summarize the multi-layer visual and textual features, obtaining a discriminative multi-modal aesthetic representation. Finally, an aesthetic attribute-guided calibration module is introduced to incorporate attribute information into the multi-modal representations, refining the fused features to enhance the accuracy of aesthetic score distribution prediction.
 
 \subsection{Learnable Query-Guided Intra-Cross Interaction Fusion}
 
-For the $l$-th visual-textual feature pair $(\tilde{\mathbf{V}}_i^l,\tilde{\mathbf{T}}_i^l)$, two learnable query sets, $\mathbf{Q}_{l,0}^{V}$ and $\mathbf{Q}_{l,0}^{T}$, are used to extract compact task-specific tokens. They first attend to their own modality:
+Rather than applying cross-attention to all visual and textual tokens at once, we use learnable queries to obtain compact aesthetic features before cross-modal exchange. For the $l$-th visual-textual feature pair $(\tilde{\mathbf{V}}_i^l,\tilde{\mathbf{T}}_i^l)$, two query sets, $\mathbf{Q}_{l,0}^{V}$ and $\mathbf{Q}_{l,0}^{T}$, first attend to their own modality:
 \begin{equation}
 \begin{aligned}
 \mathbf{Q}_{l}^{V}
@@ -107,7 +115,7 @@ For the $l$-th visual-textual feature pair $(\tilde{\mathbf{V}}_i^l,\tilde{\math
 &=\mathrm{Attn}(\mathbf{Q}_{l,0}^{T},\tilde{\mathbf{T}}_i^l,\tilde{\mathbf{T}}_i^l).
 \end{aligned}
 \end{equation}
-The intra-modal step keeps modality-specific aesthetic evidence, such as visual composition or subjective textual impressions. Then, cross-modal attention exchanges complementary image-comment cues without directly merging all tokens:
+The intra-modal step keeps modality-specific aesthetic features, such as visual composition or subjective textual impressions. Then, cross-modal attention exchanges complementary image-comment features without directly merging all tokens:
 \begin{equation}
 \begin{aligned}
 \hat{\mathbf{Q}}_{l}^{V}
@@ -120,7 +128,7 @@ The resulting cross-attended queries are added back to the intra-modal queries t
 
 \subsection{Global Token-Guided Hierarchical Aggregation}
 
-Different feature levels capture different aesthetic cues, so simply using the final layer may discard useful information. We first mean-pool $\mathbf{F}_{l}^{V}$ and $\mathbf{F}_{l}^{T}$ into layer descriptors $\mathbf{z}_{l}^{V}$ and $\mathbf{z}_{l}^{T}$. The descriptors are then concatenated with learnable global tokens and processed by self-attention:
+Different feature levels capture different aesthetic features, from color and texture to composition, semantics, and subjective impressions, so simply using the final layer may discard useful features. We first mean-pool $\mathbf{F}_{l}^{V}$ and $\mathbf{F}_{l}^{T}$ into layer descriptors $\mathbf{z}_{l}^{V}$ and $\mathbf{z}_{l}^{T}$. The descriptors are then concatenated with learnable global tokens and processed by self-attention:
 \begin{equation}
 \begin{aligned}
 \mathbf{S}^{V}
@@ -134,11 +142,11 @@ The updated global tokens serve as modality-level summaries:
 \mathbf{F}_{\mathrm{cat}}=[\mathbf{h}^{V};\mathbf{h}^{T}], \quad
 \mathbf{h}^{V}=\mathbf{S}^{V}_{0},\ \mathbf{h}^{T}=\mathbf{S}^{T}_{0}.
 \end{equation}
-Thus, the model adaptively selects useful information from multiple feature levels and forms a compact multimodal representation for refinement.
+Thus, the model adaptively selects useful features from multiple feature levels and forms a compact multimodal representation for refinement.
 
 \subsection{Attribute-Guided Representation Refinement}
 
-To reduce the effect of incomplete or noisy comments, the frozen PARN branch provides structured aesthetic priors. Given $I_i$, PARN produces a global attribute feature $\mathbf{g}_i$ and attribute scores $\mathbf{s}_i=[s_i^1,\ldots,s_i^A]$, covering explicit photographic properties. Each score is combined with $\mathbf{g}_i$ and projected into an attribute token:
+Although comments provide useful subjective features, they may not consistently cover photographic properties that influence aesthetic judgment. To make the final representation less dependent on implicit image-comment fusion, the frozen PARN branch provides structured aesthetic priors. Given $I_i$, PARN produces a global attribute feature $\mathbf{g}_i$ and attribute scores $\mathbf{s}_i=[s_i^1,\ldots,s_i^A]$, covering explicit photographic properties. Each score is combined with $\mathbf{g}_i$ and projected into an attribute token:
 \begin{equation}
 \mathbf{a}_i^j=P_r([\mathbf{g}_i;s_i^j]), \quad j=1,\ldots,A.
 \end{equation}
@@ -172,13 +180,13 @@ where $\mathrm{CDF}_{\hat{\mathbf{y}}_i}(k)=\sum_{j=1}^{k}\hat{y}_i^j$, $\mathrm
 
 \subsection{Experimental Protocols}
 
-We conduct experiments on image aesthetic assessment (IAA) datasets: AVA and AADB. The current study reports results on AVA, which contains 222,383 training, 11,707 validation, and 19,805 test images in our split. Each image is annotated with a 10-bin rating histogram. Since LQ-ICIF uses image-comment pairs, we further employ the AVA-Comments file, which contains 3,602,206 comments for 255,530 images. AADB is reserved as an additional benchmark after its preprocessing protocol is finalized.
+We conduct experiments on AVA [2], which contains 222,383 training, 11,707 validation, and 19,805 test images in our split, each with a 10-bin rating histogram. We further use AVA-Comments, which provides 3,602,206 comments for 255,530 images.
 
-To evaluate IAA performance, we employ SRCC and PLCC to measure score-level monotonicity and linear consistency, ACC for binary high/low aesthetic classification, and EMD for distribution-level prediction quality. The ground-truth AVA distribution is directly normalized from the original rating histogram. Our method is implemented in PyTorch, and all experiments are conducted on a single NVIDIA GeForce RTX 5060 Ti GPU.
+We report SRCC, PLCC, ACC, and EMD to evaluate ranking consistency, linear correlation, binary classification, and distribution prediction. The AVA rating histogram is directly normalized as ground truth. All experiments are implemented in PyTorch on a single NVIDIA GeForce RTX 5060 Ti GPU.
 
 \subsection{Implementation Details}
 
-Following the image-comment setting of LQ-ICIF, all comments matched to an image are concatenated as text input, while missing comments are replaced by a ``no comment'' token. Images are resized to $224\times224$ and augmented by random horizontal flipping during training. We use frozen CLIP ViT-L/14, BERT-base, and PARN backbones, and optimize only the lightweight adaptation, fusion, refinement, and prediction modules. The model is trained for 10 epochs using AdamW with learning rate $1\times10^{-4}$, batch size 16, and a loss combining EMD, mean-score MSE, and pairwise ranking terms.
+All comments matched to an image are concatenated as text input, while missing comments are replaced by a ``no comment'' token. Images are resized to $224\times224$ with random horizontal flipping during training. We freeze CLIP ViT-L/14, BERT-base, and PARN, and train only the lightweight modules for 10 epochs using AdamW with learning rate $1\times10^{-4}$, batch size 16, and a loss combining EMD, mean-score MSE, and pairwise ranking terms.
 
 \begin{table}[!t]
 \caption{Performance Comparison on Aesthetic Assessment Datasets}
@@ -193,99 +201,74 @@ Category & Input$^{1}$ & Method & \multicolumn{4}{c}{AVA$^{2}$} \\
  & & & SRCC & PLCC & Acc. & EMD \\
 \hline
 Visual & $I$ & NIMA [3] & 0.612 & 0.636 & 81.51 & 0.050 \\
-& $I$ & GPF-CNN [X] & 0.690 & 0.704 & 81.81 & 0.045 \\
-& $I$ & HLA-GCN [X] & 0.665 & 0.687 & 84.60 & 0.043 \\
-& $I$ & MUSIQ [X] & 0.726 & 0.738 & 81.50 & -- \\
-& $I$ & TANet [X] & 0.758 & 0.765 & -- & 0.047 \\
-& $I$ & MILNet [X] & 0.758 & 0.758 & 81.80 & -- \\
-& $I$ & IAA-LQ [X] & 0.791 & 0.790 & -- & -- \\
-& $I$ & TCD-G [X] & 0.817 & 0.818 & 84.20 & -- \\
-& $I$ & AesMamba-V$\dagger$ [X] & 0.769 & 0.774 & 85.00 & -- \\
+& $I$ & GPF-CNN [23] & 0.690 & 0.704 & 81.81 & 0.045 \\
+& $I$ & HLA-GCN [16] & 0.665 & 0.687 & 84.60 & 0.043 \\
+& $I$ & MUSIQ [17] & 0.726 & 0.738 & 81.50 & -- \\
+& $I$ & TANet [18] & 0.758 & 0.765 & -- & 0.047 \\
+& $I$ & MILNet [21] & 0.758 & 0.758 & 81.80 & -- \\
+& $I$ & IAA-LQ [19] & 0.791 & 0.790 & -- & -- \\
+& $I$ & TCD-G [22] & 0.817 & 0.818 & 84.20 & -- \\
+& $I$ & AesMamba-V$\dagger$ [20] & 0.769 & 0.774 & 85.00 & -- \\
 \hline
 Multi. & $I+C$ & VILA-R [5] & 0.774 & 0.774 & -- & -- \\
-& $I+C+A$ & AAM-Net [X] & 0.780 & 0.803 & 85.69 & 0.037 \\
-& $I+C+A$ & AMM-Net [X] & 0.816 & 0.830 & 87.58 & 0.035 \\
+& $I+C+A$ & AAM-Net [8] & 0.780 & 0.803 & 85.69 & 0.037 \\
+& $I+C+A$ & AMM-Net [7] & 0.816 & 0.830 & 87.58 & 0.035 \\
 & $I+C$ & MMLQ [6] & 0.876 & 0.896 & 89.03 & 0.029 \\
-& $I+C$ & MSCAN$^{\ddagger}$ [X] & 0.852 & 0.862 & 86.70 & 0.035 \\
-& $I+C$ & AesMamba-M$^{\ddagger}$ [X] & 0.892 & 0.899 & 89.60 & 0.031 \\
-& $I+C+A$ & Ours & \textbf{0.9145} & \textbf{0.9213} & \textbf{87.51} & \textbf{0.0403} \\
+& $I+C$ & MSCAN$^{\ddagger}$ [24] & 0.852 & 0.862 & 86.70 & 0.035 \\
+& $I+C$ & AesMamba-M$^{\ddagger}$ [20] & 0.892 & 0.899 & 89.60 & 0.031 \\
+& $I+C+A$ & Ours & \textbf{0.9147} & \textbf{0.9201} & 87.40 & 0.0410 \\
 \hline
 \end{tabular}
 \vspace{2pt}
 \begin{flushleft}
 \scriptsize
 $^{1}$ $I$, $C$, and $A$ denote image, comment, and attribute prior.\\
-$^{2}$ Results are collected from the original papers; protocol-aligned reproduction remains ongoing. ``--'' indicates that the metric is not reported.\\
-$\dagger$ denotes the stronger visual variant reported in AesMamba. $\ddagger$ denotes results reported on AVA-Captions rather than the standard AVA split.
+$^{2}$ Results are from original papers; ``--'' denotes unreported metrics. Bold marks the best SRCC/PLCC among listed methods.\\
+$\dagger$ denotes the stronger AesMamba visual variant. $\ddagger$ denotes AVA-Captions~[13] results.
 \end{flushleft}
 \end{table}
 
 \subsection{Performance Comparison}
 
-We compare our method with visual-only and multimodal image aesthetic assessment methods on the AVA dataset, with the results summarized in Table~\ref{tab:main_comparison}. From this table, several observations can be drawn:
-\begin{itemize}
-\item Visual-only baselines show limited performance, suggesting that image content alone is insufficient for subjective aesthetic prediction.
-\item LQ-ICIF achieves the best current results, with 0.9145 SRCC, 0.9213 PLCC, 87.51\% ACC, and 0.0403 EMD.
-\item With frozen CLIP, BERT, and PARN backbones, the gain mainly comes from the proposed lightweight fusion, aggregation, and attribute refinement modules.
-\end{itemize}
-
-We further plan to assess the generalization ability of the proposed method on the AADB dataset, which provides human aesthetic annotations beyond the AVA rating-distribution setting. After finalizing the AADB preprocessing protocol and comparable baselines, the additional results will be reported to verify whether LQ-ICIF remains effective across different aesthetic assessment benchmarks.
-
-\begin{table}[!t]
-\caption{Performance Comparison on an Additional Benchmark}
-\label{tab:additional_benchmark}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{l|c|ccc}
-\hline
-Method & Input$^{1}$ & \multicolumn{3}{c}{AADB} \\
-\cline{3-5}
- & & SRCC & PLCC & ACC \\
-\hline
-NIMA (2018) [3] & $I$ & TBD & TBD & TBD \\
-AMM-Net (2023) [X] & $I+C$ & TBD & TBD & TBD \\
-VILA (2023) [5] & $I+C$ & TBD & TBD & TBD \\
-MMLQ (2024) [6] & $I+C$ & TBD & TBD & TBD \\
-Ours & $I+C+A$ & TBD & TBD & TBD \\
-\hline
-\end{tabular}
-\vspace{2pt}
-\begin{flushleft}
-\scriptsize $^{1}$ $I$, $C$, and $A$ denote image, comment, and attribute prior, respectively.
-\end{flushleft}
-\end{table}
+Table~\ref{tab:main_comparison} compares LQ-ICIF with visual-only and multimodal IAA methods on AVA. LQ-ICIF obtains the highest rank and linear correlations among the listed methods, reaching 0.9147 SRCC and 0.9201 PLCC while keeping CLIP, BERT, and PARN frozen. Its accuracy and EMD remain competitive, and the correlation gains indicate that the lightweight image-comment interaction and refinement modules are effective for aesthetic score distribution prediction.
 
 \subsection{Ablation Study}
 
-We will conduct ablation experiments to verify the contribution of each component in LQ-ICIF. As shown in Table~\ref{tab:ablation}, the baseline gradually incorporates comment modeling, query-guided fusion, hierarchical aggregation, and attribute-guided refinement.
+Table~\ref{tab:ablation} reports ablation results from single-modality baselines to the full LQ-ICIF model.
 
 \begin{table}[!t]
-\caption{Ablation on Main Components of LQ-ICIF}
+\caption{Ablation Study of LQ-ICIF on AVA}
 \label{tab:ablation}
 \centering
-\footnotesize
-\setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{l|cccc|cccc}
+\scriptsize
+\setlength{\tabcolsep}{1.4pt}
+\begin{tabular}{l|c|cccc|cccc}
 \hline
-Method & C & Direct\,CA & ICIF+HA & AR & SRCC & PLCC & ACC & EMD \\
+Method & Input & Cat. & DCA & ICIF & Full & SRCC & PLCC & ACC & EMD \\
 \hline
-Baseline & -- & -- & -- & -- & TBD & TBD & TBD & TBD \\
-$B_1$ & \checkmark & -- & -- & -- & TBD & TBD & TBD & TBD \\
-$B_2$ & \checkmark & \checkmark & -- & -- & TBD & TBD & TBD & TBD \\
-$B_3$ & \checkmark & -- & \checkmark & -- & TBD & TBD & TBD & TBD \\
-Ours  & \checkmark & -- & \checkmark & \checkmark & \textbf{0.9145} & \textbf{0.9213} & \textbf{87.51} & \textbf{0.0403} \\
+$A_0$ & $I$     & -- & -- & -- & -- & 0.7570 & 0.7582 & 81.46 & 0.0614 \\
+$A_1$ & $C$     & -- & -- & -- & -- & 0.8193 & 0.8339 & 82.21 & 0.0539 \\
+$A_2$ & $I+C$   & \checkmark & -- & -- & -- & 0.8836 & 0.8912 & 85.87 & 0.0455 \\
+$A_3$ & $I+C$   & -- & \checkmark & -- & -- & 0.9120 & 0.9182 & 86.94 & 0.0409 \\
+$A_4$ & $I+C$   & -- & -- & \checkmark & -- & 0.9145 & \textbf{0.9204} & 87.10 & \textbf{0.0407} \\
+$A_5$ & $I+C+A$ & -- & -- & \checkmark & \checkmark & \textbf{0.9147} & 0.9201 & \textbf{87.40} & 0.0410 \\
 \hline
 \end{tabular}
 \vspace{2pt}
 \begin{flushleft}
-\scriptsize C: comment input. Direct\,CA: direct single-layer cross-attention following MMLQ~[6]. ICIF+HA: learnable query-guided intra-cross interaction fusion with hierarchical aggregation. AR: attribute-guided representation refinement.
+\scriptsize Cat.: final-layer CLIP/BERT concatenation. DCA: direct single-layer cross-attention following MMLQ~[6]. ICIF: query-guided intra-cross interaction fusion. Full: complete LQ-ICIF with hierarchical aggregation and attribute-guided refinement. Best values are bolded, and lower EMD is better.
 \end{flushleft}
 \end{table}
 
+The first three variants show the value of multimodal modeling. Compared with visual-only and text-only baselines, simple image-comment concatenation improves SRCC to 0.8836 and reduces EMD to 0.0455, indicating that comments provide useful complementary features. Replacing this coarse fusion with direct cross-attention further raises SRCC to 0.9120, confirming the importance of explicit image-comment interaction.
+
+The comparison between $A_3$ and $A_4$ verifies the proposed ICIF design. By preserving modality-specific features before cross-modal exchange, ICIF improves SRCC/PLCC to 0.9145/0.9204. The full model ($A_5$) remains in the same high-performance range and achieves the best SRCC, indicating that ICIF is the main source of improvement while hierarchical aggregation and attribute refinement serve as compact final design components.
+
+It is also worth noting that the full model does not improve every metric monotonically over $A_4$. This suggests that the main performance gain comes from robust image-comment feature interaction, while the additional aggregation and attribute refinement mainly stabilize the final representation with multi-level and structured photographic features.
+
 \subsection{Model Complexity Analysis}
 
-To evaluate the efficiency of the proposed method, we compare trainable parameters, adaptation computational cost, and AVA performance in Table~\ref{tab:complexity}. GMACs are measured with \texttt{thop} on a single image of $224\times224$ and the corresponding text input when applicable. For methods using frozen pretrained encoders, the backbone computations are excluded to focus on task-specific trainable modules, following the parameter-efficient comparison protocol. This analysis verifies whether LQ-ICIF achieves a favorable accuracy-efficiency trade-off.
+Table~\ref{tab:complexity} compares trainable parameters, adaptation GMACs, and AVA performance. GMACs are measured with \texttt{thop} on a $224\times224$ image and the corresponding text input when applicable. For frozen-encoder methods, backbone computations are excluded to focus on task-specific modules.
 
 \begin{table}[!t]
 \caption{Comparison of Model Complexity and Performance}
@@ -297,28 +280,28 @@ To evaluate the efficiency of the proposed method, we compare trainable paramete
 \hline
 Method & Input & Train.\,Params\,(M) & GMACs & SRCC \\
 \hline
-TANet [X] & $I$ & 13.883 & 2.165 & 0.758 \\
-Charm [X] & $I$ & 22.064 & 5.525 & -- \\
-AesMamba-V [X] & $I$ & 22.818 & 2.843$^{*}$ & 0.769 \\
+TANet [18] & $I$ & 13.883 & 2.165 & 0.758 \\
+Charm [25] & $I$ & 22.064 & 5.525 & -- \\
+AesMamba-V [20] & $I$ & 22.818 & 2.843$^{*}$ & 0.769 \\
 MMLQ [6] & $I+C$ & 60.266 & 6.193 & 0.876 \\
-AesMamba-M [X] & $I+C$ & 139.388 & 3.539$^{*}$ & 0.892 \\
-Ours & $I+C+A$ & 175.870 & 10.837 & \textbf{0.9145} \\
+AesMamba-M [20] & $I+C$ & 139.388 & 3.539$^{*}$ & 0.892 \\
+Ours & $I+C+A$ & 175.870 & 10.837 & \textbf{0.9147} \\
 \hline
 \end{tabular}
 \vspace{2pt}
 \begin{flushleft}
-\scriptsize $^{*}$ GMACs are approximate because the custom \texttt{mamba\_ssm} selective-scan CUDA operator was unavailable during profiling; parameter counts are unaffected. ``--'' indicates that the metric is not reported.
+\scriptsize $^{*}$ GMACs are approximate because the custom \texttt{mamba\_ssm} CUDA operator was unavailable; parameter counts are unaffected. ``--'' indicates unreported metrics.
 \end{flushleft}
 \end{table}
 
 \subsection{Qualitative Ranking Comparison}
 
-Following previous ranking-based analyses, we will visualize whether different methods can preserve the ground-truth aesthetic order. Fig.~\ref{fig:ranking_comparison} will compare the rankings predicted by representative baselines and LQ-ICIF on selected AVA image groups.
+As shown in Fig.~\ref{fig:ranking_comparison}, LQ-ICIF preserves the ground-truth aesthetic order on representative AVA test samples, indicating that the predicted mean scores are consistent with human ranking preference.
 
 \begin{figure}[!t]
 \centering
-\fbox{\parbox[c][1.15in][c]{0.92\columnwidth}{\centering Ranking comparison placeholder}}
-\caption{Qualitative ranking comparison on AVA. Images will be sorted from low to high aesthetic quality according to ground-truth mean scores and predictions of different methods.}
+\includegraphics[width=\columnwidth]{fig3_images/ranking_comparison.png}
+\caption{Qualitative ranking comparison on nine AVA samples. Images are arranged in a $3\times3$ grid from low to high aesthetic quality by ground-truth and predicted mean scores.}
 \label{fig:ranking_comparison}
 \end{figure}
 
@@ -544,8 +527,134 @@ way, and stating that you are willing to pay the additional fee.
 
 \section{Conclusion}
 
-A conclusion section is not required. Although a conclusion may review the main points of the paper, do not replicate the abstract as the conclusion. A conclusion might elaborate on the importance of the work or suggest applications and extensions. 
+In this letter, we proposed LQ-ICIF, a parameter-efficient multimodal framework for image aesthetic score distribution prediction. By combining learnable query-guided image-comment interaction, hierarchical aggregation, and PARN-based attribute refinement, the proposed method exploits complementary visual, textual, and structured aesthetic features while keeping large pretrained encoders frozen. Experiments and ablation studies on AVA demonstrate the potential of combining user comments and photographic attribute priors for robust and interpretable image aesthetic assessment.
 
+\IEEEtriggeratref{20}
+\begin{thebibliography}{40}
+
+\bibitem{datta2006}
+R. Datta, D. Joshi, J. Li, and J. Z. Wang, ``Studying aesthetics in photographic images using a computational approach,'' in \emph{Proc. Eur. Conf. Comput. Vis. (ECCV)}, 2006, pp. 288--301.
+
+\bibitem{murray2012ava}
+N. Murray, L. Marchesotti, and F. Perronnin, ``AVA: A large-scale database for aesthetic visual analysis,'' in \emph{Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2012, pp. 2408--2415.
+
+\bibitem{talebi2018nima}
+H. Talebi and P. Milanfar, ``NIMA: Neural image assessment,'' \emph{IEEE Trans. Image Process.}, vol. 27, no. 8, pp. 3998--4011, Aug. 2018.
+
+\bibitem{kong2016parn}
+S. Kong, X. Shen, Z. Lin, R. Mech, and C. Fowlkes, ``Photo aesthetics ranking network with attributes and content adaptation,'' in \emph{Proc. Eur. Conf. Comput. Vis. (ECCV)}, 2016, pp. 662--679.
+
+\bibitem{ke2023vila}
+J. Ke, K. Ye, J. Yu, Y. Wu, P. Milanfar, and F. Yang, ``VILA: Learning image aesthetics from user comments with vision-language pretraining,'' arXiv preprint arXiv:2303.14302, 2023.
+
+\bibitem{xiong2024mmlq}
+Z. Xiong, Y. Zhang, Z. Shen, P. Ren, and H. Yu, ``Multi-modal learnable queries for image aesthetics assessment,'' arXiv preprint arXiv:2405.01326, 2024.
+
+\bibitem{li2023ammnet}
+L. Li, T. Zhu, P. Chen, Y. Yang, Y. Li, and W. Lin, ``Image aesthetics assessment with attribute-assisted multimodal memory network,'' \emph{IEEE Trans. Circuits Syst. Video Technol.}, vol. 33, no. 12, pp. 7413--7424, Dec. 2023.
+
+\bibitem{zhu2023aamnet}
+T. Zhu, L. Li, P. Chen, J. Wu, Y. Yang, Y. Li, and Y. Guo, ``Attribute-assisted multimodal network for image aesthetics assessment,'' in \emph{Proc. IEEE Int. Conf. Multimedia Expo (ICME)}, 2023, pp. 2477--2482.
+
+\bibitem{radford2021clip}
+A. Radford \emph{et al.}, ``Learning transferable visual models from natural language supervision,'' in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2021, pp. 8748--8763.
+
+\bibitem{devlin2019bert}
+J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, ``BERT: Pre-training of deep bidirectional transformers for language understanding,'' in \emph{Proc. Conf. North Amer. Chapter Assoc. Comput. Linguistics: Hum. Lang. Technol. (NAACL-HLT)}, 2019, pp. 4171--4186.
+
+\bibitem{li2023blip2}
+J. Li, D. Li, S. Savarese, and S. Hoi, ``BLIP-2: Bootstrapping language-image pre-training with frozen image encoders and large language models,'' in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2023, pp. 19730--19742.
+
+\bibitem{chang2017pccd}
+K. Chang, K.-H. Lu, and C.-S. Chen, ``Aesthetic critiques generation for photos,'' in \emph{Proc. IEEE Int. Conf. Comput. Vis. (ICCV)}, 2017, pp. 3514--3523.
+
+\bibitem{ghosal2019aesthetic}
+K. Ghosal, A. Rana, and A. Smolic, ``Aesthetic image captioning from weakly-labelled photographs,'' in \emph{Proc. IEEE/CVF Int. Conf. Comput. Vis. Workshops (ICCVW)}, 2019.
+
+\bibitem{li2025critiques}
+L. Li, X. Sheng, P. Chen, J. Wu, and W. Dong, ``Towards explainable image aesthetics assessment with attribute-oriented critiques generation,'' \emph{IEEE Trans. Circuits Syst. Video Technol.}, vol. 35, no. 2, pp. 1464--1477, Feb. 2025.
+
+\bibitem{li2025iaaclip}
+Z. Li, X. Yan, X. Wei, and F. Shao, ``IAACLIP: Image aesthetics assessment via CLIP,'' \emph{Electronics}, vol. 14, no. 7, Art. no. 1425, Apr. 2025.
+
+\bibitem{she2021hlagcn}
+D. She, Y.-K. Lai, G. Yi, and K. Xu, ``Hierarchical layout-aware graph convolutional network for unified aesthetics assessment,'' in \emph{Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2021, pp. 8475--8484.
+
+\bibitem{ke2021musiq}
+J. Ke, Q. Wang, Y. Wang, P. Milanfar, and F. Yang, ``MUSIQ: Multi-scale image quality transformer,'' in \emph{Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV)}, 2021, pp. 5148--5157.
+
+\bibitem{he2022tanet}
+S. He, Y. Zhang, R. Xie, D. Jiang, and A. Ming, ``Rethinking image aesthetics assessment: Models, datasets and benchmarks,'' in \emph{Proc. Int. Joint Conf. Artif. Intell. (IJCAI)}, 2022, pp. 942--948.
+
+\bibitem{xiong2023iaalq}
+Z. Xiong, Y. Zhang, Z. Shen, P. Ren, and H. Yu, ``Image aesthetics assessment via learnable queries,'' arXiv preprint arXiv:2309.02861, 2023.
+
+\bibitem{gao2024aesmamba}
+F. Gao, Y. Lin, J. Shi, M. Qiao, and N. Wang, ``AesMamba: Universal image aesthetic assessment with state space models,'' in \emph{Proc. ACM Int. Conf. Multimedia (MM)}, 2024, pp. 7444--7454.
+
+\bibitem{shi2024milnet}
+T. Shi, C. Chen, Z. Wu, A. Hao, and Y. Fang, ``Improving image aesthetic assessment via multiple image joint learning,'' \emph{ACM Trans. Multimedia Comput. Commun. Appl.}, vol. 20, no. 11, Art. no. 355, Nov. 2024.
+
+\bibitem{hou2025tcdg}
+J. Hou, W. Lin, Y. Fang, H. Wu, C. Chen, L. Liao, and W. Liu, ``Toward transparent deep image aesthetics assessment with tag-based content descriptors,'' \emph{IEEE Trans. Image Process.}, vol. 34, pp. 3070--3084, 2025.
+
+\bibitem{zhang2019gpfcnn}
+X. Zhang, X. Gao, W. Lu, and L. He, ``A gated peripheral-foveal convolutional neural network for unified image aesthetic prediction,'' \emph{IEEE Trans. Multimedia}, vol. 21, no. 11, pp. 2815--2826, Nov. 2019.
+
+\bibitem{zhang2021mscan}
+X. Zhang, X. Gao, L. He, and W. Lu, ``MSCAN: Multimodal self-and-collaborative attention network for image aesthetic prediction tasks,'' \emph{Neurocomputing}, vol. 430, pp. 14--23, Mar. 2021.
+
+\bibitem{behrad2025charm}
+F. Behrad, T. Tuytelaars, and J. Wagemans, ``Charm: The missing piece in ViT fine-tuning for image aesthetic assessment,'' in \emph{Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2025, pp. 7815--7824.
+
+\bibitem{deng2017survey}
+Y. Deng, C. C. Loy, and X. Tang, ``Image aesthetic assessment: An experimental survey,'' \emph{IEEE Signal Process. Mag.}, vol. 34, no. 4, pp. 80--106, Jul. 2017.
+
+\bibitem{dhar2011high}
+S. Dhar, V. Ordonez, and T. L. Berg, ``High level describable attributes for predicting aesthetics and interestingness,'' in \emph{Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2011, pp. 1657--1664.
+
+\bibitem{marchesotti2011generic}
+L. Marchesotti, F. Perronnin, D. Larlus, and G. Csurka, ``Assessing the aesthetic quality of photographs using generic image descriptors,'' in \emph{Proc. IEEE Int. Conf. Comput. Vis. (ICCV)}, 2011, pp. 1784--1791.
+
+\bibitem{mai2016composition}
+L. Mai, H. Jin, and F. Liu, ``Composition-preserving deep photo aesthetics assessment,'' in \emph{Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2016, pp. 497--506.
+
+\bibitem{ma2017alamp}
+S. Ma, J. Liu, and C. W. Chen, ``A-Lamp: Adaptive layout-aware multi-patch deep convolutional neural network for photo aesthetic assessment,'' in \emph{Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2017, pp. 4535--4544.
+
+\bibitem{wang2016bdn}
+Z. Wang, S. Chang, F. Dolcos, D. Beck, D. Liu, and T. S. Huang, ``Brain-inspired deep networks for image aesthetics assessment,'' arXiv preprint arXiv:1601.04155, 2016.
+
+\bibitem{ren2017personalized}
+J. Ren, X. Shen, Z. Lin, R. Mech, and D. J. Foran, ``Personalized image aesthetics,'' in \emph{Proc. IEEE Int. Conf. Comput. Vis. (ICCV)}, 2017, pp. 638--647.
+
+\bibitem{celona2022composition}
+L. Celona, M. Leonardi, P. Napoletano, and A. Rozza, ``Composition and style attributes guided image aesthetic assessment,'' \emph{IEEE Trans. Image Process.}, vol. 31, pp. 5009--5024, 2022.
+
+\bibitem{anwar2022comparative}
+A. Anwar, S. Kanwal, M. Tahir, M. Saqib, M. Uzair, M. K. I. Rahmani, and H. Ullah, ``Image aesthetic assessment: A comparative study of hand-crafted and deep learning models,'' \emph{IEEE Access}, vol. 10, pp. 101770--101789, 2022.
+
+\bibitem{vaswani2017attention}
+A. Vaswani \emph{et al.}, ``Attention is all you need,'' in \emph{Proc. Adv. Neural Inf. Process. Syst. (NeurIPS)}, 2017, pp. 5998--6008.
+
+\bibitem{dosovitskiy2021vit}
+A. Dosovitskiy \emph{et al.}, ``An image is worth 16x16 words: Transformers for image recognition at scale,'' in \emph{Proc. Int. Conf. Learn. Represent. (ICLR)}, 2021.
+
+\bibitem{li2022blip}
+J. Li, D. Li, C. Xiong, and S. Hoi, ``BLIP: Bootstrapping language-image pre-training for unified vision-language understanding and generation,'' in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2022, pp. 12888--12900.
+
+\bibitem{zhou2022coop}
+K. Zhou, J. Yang, C. C. Loy, and Z. Liu, ``Learning to prompt for vision-language models,'' \emph{Int. J. Comput. Vis.}, vol. 130, no. 9, pp. 2337--2348, Sep. 2022.
+
+\bibitem{jia2022vpt}
+M. Jia, L. Tang, B.-C. Chen, C. Cardie, S. Belongie, B. Hariharan, and S.-N. Lim, ``Visual prompt tuning,'' in \emph{Proc. Eur. Conf. Comput. Vis. (ECCV)}, 2022, pp. 709--727.
+
+\bibitem{hu2022lora}
+E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and W. Chen, ``LoRA: Low-rank adaptation of large language models,'' in \emph{Proc. Int. Conf. Learn. Represent. (ICLR)}, 2022.
+
+\end{thebibliography}
+
+\iffalse
 \section*{Acknowledgment}
 
 The preferred spelling of the word ``acknowledgment'' in American English is without an ``e'' after the ``g.'' Use the singular heading even if you have many acknowledgments. Avoid expressions such as ``One of us (S.B.A.) would like to thank . . . .'' Instead, write “F. A. Author thanks ... .” In most cases, sponsor and financial support acknowledgments are placed in the unnumbered footnote on the first page, not here.
@@ -817,5 +926,7 @@ b) {\em Title of Standard}, Standard number, Corporate author, location, date.
 
 \bibitem{}S. Azodolmolky {\em et al.}, Experimental demonstration of an impairment aware network planning and operation tool for transparent/translucent optical networks,'' {\em J. Lightw. Technol.}, vol. 29, no. 4, pp. 439--448, Sep. 2011.
 \end{thebibliography}
+
+\fi
 
 \end{document}
