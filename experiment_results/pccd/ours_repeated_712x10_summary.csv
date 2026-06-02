@@ -1,0 +1,11 @@
+seed,train,val,test,run_dir,mse,srcc,plcc,acc,emd1,emd2
+0,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_00/2026-05-01-22-56-15,0.5232,0.7611,0.7765,97.76,0.0561,0.0967
+1,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_01/2026-05-01-23-20-44,0.5009,0.7613,0.7677,98.35,0.0545,0.0943
+2,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_02/2026-05-01-23-44-59,0.823,0.755,0.7604,97.28,0.0715,0.1226
+3,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_03/2026-05-02-00-09-12,0.605,0.7247,0.7622,97.99,0.0622,0.1041
+4,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_04/2026-05-02-00-33-16,0.6176,0.7488,0.7432,98.58,0.0639,0.1067
+5,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_05/2026-05-02-00-57-28,0.6493,0.7168,0.7185,97.28,0.0639,0.1079
+6,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_06/2026-05-02-01-21-49,0.5512,0.7565,0.7772,97.28,0.0569,0.0979
+7,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_07/2026-05-02-01-46-22,0.5649,0.747,0.7544,96.93,0.0597,0.0973
+8,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_08/2026-05-02-02-10-24,0.5923,0.7561,0.753,97.64,0.0574,0.098
+9,2964,424,847,/root/autodl-tmp/pccd_repeated_712_10runs/runs/seed_09/2026-05-02-02-34-55,0.8782,0.7337,0.7345,97.76,0.0734,0.123

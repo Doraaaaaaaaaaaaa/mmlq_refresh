@@ -1,0 +1,39 @@
+dataset: "pccd"
+padding: False
+augmentation: 1
+
+# Training
+epochs: 10
+batch_size: 16
+accum_steps: 4
+num_workers: 8
+
+lr: 0.0001
+lambda_mean: 0.2
+lambda_rank: 0.1
+
+# Model
+query_size: 768
+num_visual_query: 2
+num_text_query: 2
+num_attn_heads: 8
+hier_attn_layers: 2
+attr_reasoning_layers: 1
+max_caption_length: 512
+dropout: 0.1
+
+# Encoder
+clip_pretrained: "/root/autodl-tmp/AutoDL_upload_package/cache/torch/hub/checkpoints/clip_vit_L.pth"
+parn_pretrained: "/root/autodl-tmp/AutoDL_upload_package/AMM-Net.pt"
+ava_dataset_dir: "/root/autodl-tmp/PCCD/PCCD_AVA_Format"
+
+# Resume
+resume: ""
+
+# Checkpoint
+save_root: "/root/autodl-tmp/mmlq_refresh_save"
+save_latest: True
+save_best: True
+save_every_epoch: False
+checkpoint_trainable_only: True
+best_include_optimizer: False
