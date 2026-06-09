@@ -33,7 +33,7 @@ Image aesthetic assessment, learnable queries, multimodal fusion, hierarchical i
 
 \IEEEPARstart{I}{mage} aesthetic assessment (IAA) aims to automatically predict human aesthetic perception of images. Owing to its wide applications in fields such as image retrieval, photo recommendation, automatic enhancement, and social media content management, this task has attracted growing interest in recent years.
 
-Due to its highly abstract nature, IAA remains a challenging research topic. Early IAA approaches focused on designing hand-crafted features based on photographic rules. More recently, with the prevalence of deep learning, distribution prediction methods(such as NIMA)utilize Earth Mover's Distance (EMD) to predict aesthetic score distributions. However, relying solely on aesthetic score labels provides limited supervision information, which may result in a neglect of aesthetic details.
+Due to its highly abstract nature, IAA remains a challenging research topic. Early IAA approaches focused on designing hand-crafted features based on photographic rules. More recently, with the prevalence of deep learning, distribution prediction methods (such as NIMA) utilize Earth Mover's Distance (EMD) to predict aesthetic score distributions. However, relying solely on aesthetic score labels provides limited supervision information, which may result in a neglect of aesthetic details.
 
 \begin{figure}[!t]
 \centering
@@ -177,16 +177,14 @@ where $\mathrm{CDF}_{\hat{\mathbf{y}}_i}(k)=\sum_{j=1}^{k}\hat{y}_i^j$, $\mathrm
 
 \subsection{Experimental Protocols}
 
-We evaluate on AVA-Comments, which provides 3,602,206 comments for 255,530 images.
-
-We report SRCC, PLCC, ACC, and EMD to evaluate ranking consistency, linear correlation, binary classification, and distribution prediction, respectively. The AVA score distribution is directly normalized as ground truth. All experiments are implemented in PyTorch on a single NVIDIA GeForce RTX 5060 Ti GPU.
+We evaluate our model on AVA-Comments dataset, which provides 3,602,206 comments for 255,530 images. We report SRCC, PLCC, ACC, and EMD to evaluate ranking consistency, linear correlation, binary classification, and distribution prediction, respectively. The AVA score distribution is directly normalized as ground truth. All experiments are implemented in PyTorch on a single NVIDIA GeForce RTX 5060 Ti GPU.
 
 \subsection{Implementation Details}
 
-All comments matched to an image are concatenated as text input, while missing comments are replaced by a ``no comment'' token. Images are resized to $224\times224$ with random horizontal flipping during training. We freeze CLIP ViT-L/14, BERT-base, and the attribute encoder, and train only the Adapter modules, projection layers, and attention modules for 10 epochs using AdamW with learning rate $1\times10^{-4}$ and batch size 16.
+All comments matched to an image are concatenated as text input, while missing comments are replaced by a ``no comment'' token. Images are resized to $224\times224$ with random horizontal flipping during training. We freeze CLIP ViT-L/14 image encoder, BERT-base, and the attribute encoder, and train only the Adapter modules, projection layers, and attention modules for 10 epochs using AdamW with learning rate $1\times10^{-4}$ and batch size 16.
 
 \begin{table}[!t]
-\caption{Performance Comparison on Aesthetic Assessment Datasets}
+\caption{Performance Comparison on AVA-Comments Dataset}
 \label{tab:main_comparison}
 \centering
 \scriptsize
@@ -213,7 +211,7 @@ Multi. & $I+C$ & VILA-R [5] & 0.774 & 0.774 & -- & -- \\
 & $I+C$ & AesMamba-M$^{\ddagger}$ [20] & 0.892 & 0.899 & 89.60 & 0.031 \\
 & $I+C+A$ & AAM-Net [8] & 0.780 & 0.803 & 85.69 & 0.037 \\
 & $I+C+A$ & AMM-Net [7] & 0.816 & 0.830 & 87.58 & 0.035 \\
-& $I+C+A$ & Ours & \textbf{0.915} & \textbf{0.920} & 87.40 & 0.041 \\
+& $I+C+A$ & Ours & \textbf{0.915} & \textbf{0.920} & \textbf{87.40} & \textbf{0.041} \\
 \hline
 \end{tabular}
 \vspace{2pt}
@@ -227,14 +225,14 @@ $\dagger$ denotes the stronger AesMamba visual variant. $\ddagger$ denotes AVA-C
 
 \subsection{Performance Comparison}
 
-Table~\ref{tab:main_comparison} compares LQ-VCINet with classical vision-only IAA methods and recent multimodal IAA methods on the AVA-Comments dataset. LQ-VCINet outperforms all competing methods on both rank correlation and linear correlation metrics, achieving an SRCC of 0.915 and a PLCC of 0.920.
+Table~\ref{tab:main_comparison} compares LQ-VCINet with classical visual-only IAA methods and recent multimodal IAA methods on the AVA-Comments dataset. LQ-VCINet outperforms all competing methods on both rank correlation and linear correlation metrics, achieving an SRCC of 0.915 and a PLCC of 0.920.
 
 \subsection{Ablation Study}
 
-Table~\ref{tab:ablation} reports ablation results from single-modality baselines to the full LQ-VCINet model.
+Table~\ref{tab:ablation} reports ablation results from single-modality baselines to the full LQ-VCINet model. The first three variants ($A_0$--$A_2$) demonstrate the role of multimodal modeling. The single-modality baselines ($A_0$, SRCC 0.757; $A_1$, SRCC 0.819) show that neither visual nor comment features alone are sufficient for accurate aesthetic assessment. Simple concatenation ($A_2$, SRCC 0.884, EMD 0.046) confirms the complementarity of the two modalities, while direct single-layer cross-attention ($A_3$, SRCC 0.912) shows that explicit cross-modal interaction brings clear gains over naive feature merging.
 
 \begin{table}[!t]
-\caption{Ablation Study of LQ-VCINet on AVA}
+\caption{Ablation Study of LQ-VCINet on AVA-Comments}
 \label{tab:ablation}
 \centering
 \scriptsize
@@ -257,9 +255,7 @@ $A_5$ & $I+C+A$ & -- & -- & \checkmark & \checkmark & \textbf{0.915} & \textbf{0
 \end{flushleft}
 \end{table}
 
-The first three variants ($A_0$--$A_2$) demonstrate the value of multimodal modeling. The single-modality baselines ($A_0$, SRCC 0.757; $A_1$, SRCC 0.819) show that neither visual nor comment features alone are sufficient for accurate aesthetic assessment. Simple concatenation ($A_2$, SRCC 0.884, EMD 0.046) confirms the complementarity of the two modalities, while direct single-layer cross-attention ($A_3$, SRCC 0.912) shows that explicit cross-modal interaction brings clear gains over naive feature merging.
-
-The comparison between $A_3$ and $A_4$ validates the proposed ICIF design. By first capturing intra-modal aesthetic features via learnable queries before cross-modal exchange, ICIF ($A_4$) improves SRCC/PLCC to 0.914/0.920 and ACC to 87.10, confirming that preserving modality-specific structure prior to cross-modal fusion yields richer and more discriminative aesthetic representations.
+The comparison between $A_3$ and $A_4$ validates the proposed LQ-ICI design. By first capturing intra-modal aesthetic features via learnable queries before cross-modal exchange, LQ-ICI ($A_4$) improves SRCC/PLCC to 0.914/0.920 and ACC to 87.10, confirming that preserving modality-specific structure prior to cross-modal fusion yields richer and more discriminative aesthetic representations.
 
 The full model ($A_5$) incorporates hierarchical multi-layer aggregation and attribute-guided refinement on top of ICIF, achieving the best results across all four metrics (SRCC 0.915, PLCC 0.920, ACC 87.40, EMD 0.041). These gains confirm that both global token aggregation and aesthetic attribute priors contribute meaningfully to the final prediction.
 
