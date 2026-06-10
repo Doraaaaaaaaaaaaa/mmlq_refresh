@@ -21,7 +21,7 @@
 \maketitle
 
 \begin{abstract}
-Image  Aesthetic  Assessment  (IAA)  has  attracted wide interest in recent years, but it remains challenging due to its highly subjective and ambiguous nature. With the prevalence of  social  media,  user   comments  can  provide   rich  aesthetics- aware   semantic   information   and   human   observers   typically evaluate  images  from  the  perspective  of  aesthetic  attributes. Motivated by these findings and the effectiveness of learnable queries in extracting task-specific   features   from   frozen   models,   we   propose   Learnable Query-Guided Visual-Comment Interaction Network (LQ-VCINet) for IAA, which include Learnable Queries Guided Intra-Cross modal Interaction module (LQ-ICI) to perform hierarchical feature fusion, a global token guided multiple layer feature aggregation module (GFA), and a attribute guided representation refinement module (ARR) and a prediction head to perform aesthetic assessment.  Experiments  on  AVA-Comments dataset demonstrate that LQ-VCINet achieves state-of-the-art performance on  multimodal  IAA,  with  an  SRCC  of  0.915  and  a  PLCC  of 0.920.
+Image  Aesthetic  Assessment  (IAA)  has  attracted wide interest in recent years, but it remains challenging due to its highly subjective and ambiguous nature. With the prevalence of  social  media,  user   comments  can  provide   rich  aesthetics- aware   semantic   information   and   human   observers   typically evaluate  images  from  the  perspective  of  aesthetic  attributes. Recently, learnable queries in large-scale pre-trained models have been shown to effectively extract task-specific features from frozen encoders. Motivated by this,   we   propose   Learnable Query-Guided Visual-Comment Interaction Network (LQ-VCINet) for IAA, which include Learnable Queries Guided Intra-Cross modal Interaction module (LQ-ICI) to perform hierarchical feature fusion, a global token guided multiple layer feature aggregation module (GFA), and a attribute guided representation refinement module (ARR) and a prediction head to perform aesthetic assessment.  Experiments  on  AVA-Comments dataset demonstrate that LQ-VCINet achieves state-of-the-art performance on  multimodal  IAA,  with  an  SRCC  of  0.915  and  a  PLCC  of 0.920.
 \end{abstract}
 \begin{IEEEkeywords}
 Image aesthetic assessment, learnable queries, multimodal fusion, hierarchical interaction, aesthetic attributes.
@@ -225,7 +225,15 @@ $\dagger$ denotes the stronger AesMamba visual variant. $\ddagger$ denotes AVA-C
 
 \subsection{Performance Comparison}
 
-Table~\ref{tab:main_comparison} compares LQ-VCINet with classical visual-only IAA methods and recent multimodal IAA methods on the AVA-Comments dataset. LQ-VCINet outperforms all competing methods on both rank correlation and linear correlation metrics, achieving an SRCC of 0.915 and a PLCC of 0.920.
+We compare LQ-VCINet with representative IAA methods across three categories on the AVA-Comments dataset, with the results summarized in Table~\ref{tab:main_comparison}. From this table, several observations can be drawn:
+
+\textit{Vision-only methods} rely solely on visual features for aesthetic assessment. Classical deep learning approaches such as NIMA, GPF-CNN, and HLA-GCN achieve SRCC values ranging from 0.612 to 0.690, reflecting the limitations of hand-crafted or early CNN-based representations. Recent transformer-based methods, including MUSIQ, TANet, and IAA-LQ, demonstrate improved performance with SRCC values between 0.726 and 0.817, benefiting from multi-scale feature extraction and attention mechanisms. Among them, TCD-G achieves the highest SRCC of 0.817 by incorporating content descriptors.
+
+\textit{Multimodal methods without attribute priors} leverage both image and comment modalities. VILA-R, which applies vision-language pretraining, achieves an SRCC of 0.774, demonstrating the potential of cross-modal learning. MMLQ and AesMamba-M further improve performance to 0.876 and 0.892, respectively, by employing learnable queries and state space models to capture hierarchical image-comment interactions.
+
+\textit{Multimodal methods with attribute priors} explicitly incorporate aesthetic attributes to guide representation learning. AAM-Net and AMM-Net achieve SRCC values of 0.780 and 0.816, respectively, by fusing attribute information with image-comment features. However, their performance remains limited by single-layer fusion strategies and lack of hierarchical aggregation.
+
+Our proposed LQ-VCINet outperforms all competing methods across both rank correlation and linear correlation metrics, achieving an SRCC of 0.915 and a PLCC of 0.920. These results validate the effectiveness of learnable query-guided hierarchical interaction, multi-layer feature aggregation, and attribute-guided refinement for aesthetic assessment.
 
 \subsection{Ablation Study}
 
